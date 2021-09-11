@@ -77,8 +77,7 @@ import edu.gatech.chai.omopv6.model.entity.VisitOccurrence;
  * 38000182	Drug era - 30 days persistence window	 
  * 44777970	Randomized Drug	 
  */
-public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, DrugExposure, DrugExposureService>
-		implements IResourceMapping<MedicationRequest, DrugExposure> {
+public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, DrugExposure, DrugExposureService> {
 
 	public static Long MEDICATIONREQUEST_CONCEPT_TYPE_ID = 38000177L;
 	private static OmopMedicationRequest omopMedicationRequest = new OmopMedicationRequest();
@@ -119,6 +118,14 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 			omopId = IdMapping.getOMOPfromFHIR(fhirId.getIdPartAsLong(), MedicationRequestResourceProvider.getType());
 		}
 
+		/* check if we already have this entry by looking up the fhir_resource_deduplicate table.
+		 * We use identifier to check.
+		 */ 
+		Long omopIdFound = findOMOPEntity(fhirResource.getIdentifier(), "Drug");
+		if (omopIdFound != 0L) {
+			omopId = omopIdFound;
+		}
+
 		drugExposure = constructOmop(omopId, fhirResource);
 
 		Long retOmopId = null;
@@ -126,6 +133,9 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 			retOmopId = getMyOmopService().create(drugExposure).getId();
 		} else {
 			retOmopId = getMyOmopService().update(drugExposure).getId();
+
+			// Create a deduplicate entry
+			createDuplicateEntry(fhirResource.getIdentifier(), "Drug", retOmopId);			
 		}
 		
 		return IdMapping.getFHIRfromOMOP(retOmopId, MedicationStatementResourceProvider.getType());

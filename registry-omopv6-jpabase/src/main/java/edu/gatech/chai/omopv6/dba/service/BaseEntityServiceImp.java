@@ -137,41 +137,6 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity, V extends BaseE
 		TypedQuery<T> query = em.createQuery(queryString, entityClass);
 
 		addParametersToQuery(query, parameters);
-//		for (Map.Entry<String, String> entry : parameters.entrySet()) {
-//			String[] value = entry.getValue().split(",", 2);
-//			String valueType = value[0];
-//			String valueValue = value[1];
-//			
-//			logger.debug("SQL Requested: \n"
-//					+ " Request: " + queryString + "\n"
-//					+ " from: " + fromIndex + "\n"
-//					+ " to: " + toIndex + "\n"
-//					+ " paremeterKey: " + entry.getKey() + "\n"
-//					+ " parameterValue: " + entry.getValue());
-//			
-//			switch (valueType) {
-//			case "Date":
-//				Long dateInMili = Long.valueOf(valueValue);
-//				Date valueDate = new Date(dateInMili);
-//				query.setParameter(entry.getKey(), valueDate);	
-//				break;
-//			case "Short":
-//				query.setParameter(entry.getKey(), Short.valueOf(valueValue));
-//				break;
-//			case "Long":
-//				query.setParameter(entry.getKey(), Long.valueOf(valueValue));
-//				break;
-//			case "Double":
-//				query.setParameter(entry.getKey(), Double.valueOf(valueValue));
-//				break;
-//			case "Integer":
-//				query.setParameter(entry.getKey(), Integer.valueOf(valueValue));
-//				break;
-//			default: // assume it to be String
-//				query.setParameter(entry.getKey(), valueValue);	
-//			}				
-//		}
-
 		query.setFirstResult(fromIndex);
 		query.setMaxResults(toIndex - fromIndex);
 		List<T> retvals = query.getResultList();
@@ -311,12 +276,6 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity, V extends BaseE
  		if (parameters != null) {
  			addParametersToQuery(query, parameters);
  		}
- //		if (parameters != null) {
- //			for (Map.Entry<String, String> entry : parameters.entrySet()) {
- //				query.setParameter(entry.getKey(), entry.getValue());
- //			}
- //		}
- //		
  		return query.getSingleResult();
 	 }
 	 

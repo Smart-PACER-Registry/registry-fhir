@@ -127,11 +127,22 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 			omopId = IdMapping.getOMOPfromFHIR(fhirIdLong, MedicationStatementResourceProvider.getType());
 		}
 
+		/* check if we already have this entry by looking up the fhir_resource_deduplicate table.
+		 * We use identifier to check.
+		 */ 
+		Long omopIdFound = findOMOPEntity(fhirResource.getIdentifier(), "Drug");
+		if (omopIdFound != 0L) {
+			omopId = omopIdFound;
+		}
+  
 		DrugExposure drugExposure = constructOmop(omopId, fhirResource);
 
 		Long retOmopId = null;
 		if (drugExposure.getId() == null || drugExposure.getId() == 0L) {
 			retOmopId = getMyOmopService().create(drugExposure).getId();
+
+			// Create a deduplicate entry
+			createDuplicateEntry(fhirResource.getIdentifier(), "Drug", retOmopId);			
 		} else {
 			retOmopId = getMyOmopService().update(drugExposure).getId();
 		}
@@ -473,7 +484,6 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 			} else {
 				if (system != null && !system.isEmpty()) {
 					try {
-//						omopVocabulary = OmopCodeableConceptMapping.omopVocabularyforFhirUri(system);
 						omopVocabulary = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(system);
 					} catch (FHIRException e) {
 						e.printStackTrace();
@@ -549,20 +559,6 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 		case "Patient:" + Patient.SP_IDENTIFIER:
 			addParamlistForPatientIDName(parameter, (String) value, paramWrapper, mapList);
 			break;
-//		case MedicationStatement.SP_PATIENT:
-//			ReferenceParam patientReference = ((ReferenceParam) value);
-//			Long fhirPatientId = patientReference.getIdPartAsLong();
-//			Long omopPersonId = IdMapping.getOMOPfromFHIR(fhirPatientId, PatientResourceProvider.getType());
-//
-//			String omopPersonIdString = String.valueOf(omopPersonId);
-//
-//			paramWrapper.setParameterType("Long");
-//			paramWrapper.setParameters(Arrays.asList("fPerson.id"));
-//			paramWrapper.setOperators(Arrays.asList("="));
-//			paramWrapper.setValues(Arrays.asList(omopPersonIdString));
-//			paramWrapper.setRelationship("or");
-//			mapList.add(paramWrapper);
-//			break;
 		case MedicationStatement.SP_SOURCE:
 			ReferenceParam sourceReference = ((ReferenceParam) value);
 			String sourceReferenceId = String.valueOf(sourceReference.getIdPartAsLong());
@@ -643,46 +639,25 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 			}
 		} else {
 			// Create
-			List<Identifier> identifiers = fhirResource.getIdentifier();
-			for (Identifier identifier : identifiers) {
-				if (identifier.isEmpty())
-					continue;
-				String identifierValue = identifier.getValue();
-				List<DrugExposure> results = getMyOmopService().searchByColumnString("drugSourceValue",
-						identifierValue);
-				if (!results.isEmpty()) {
-					drugExposure = results.get(0);
-					omopId = drugExposure.getId();
-					break;
-				}
-			}
-
-			if (drugExposure == null) {
-				drugExposure = new DrugExposure();
-				// Add the source column.
-				Identifier identifier = fhirResource.getIdentifierFirstRep();
-				if (!identifier.isEmpty()) {
-					drugExposure.setDrugSourceValue(identifier.getValue());
-				}
-			}
+			drugExposure = new DrugExposure();
 		}
 
 		// context.
 		Reference contextReference = fhirResource.getContext();
-		if (contextReference != null && !contextReference.isEmpty()) {
-			if (EncounterResourceProvider.getType().equals(contextReference.getReferenceElement().getResourceType())) {
-				Long encounterFhirIdLong = contextReference.getReferenceElement().getIdPartAsLong();
-				if (encounterFhirIdLong != null) {
-					Long visitOccurrenceId = IdMapping.getOMOPfromFHIR(encounterFhirIdLong,
-							EncounterResourceProvider.getType());
-					// find the visit occurrence from OMOP database.
-					VisitOccurrence newVisitOccurrence = visitOccurrenceService.findById(visitOccurrenceId);
-					if (newVisitOccurrence != null) {
-						drugExposure.setVisitOccurrence(newVisitOccurrence);
-					} else {
-						throw new FHIRException("Context Reference (Encounter/" + encounterFhirIdLong
-								+ ") couldn't be found in our local database");
-					}
+		if (contextReference != null 
+			&& !contextReference.isEmpty()
+			&& EncounterResourceProvider.getType().equals(contextReference.getReferenceElement().getResourceType())) {
+			Long encounterFhirIdLong = contextReference.getReferenceElement().getIdPartAsLong();
+			if (encounterFhirIdLong != null) {
+				Long visitOccurrenceId = IdMapping.getOMOPfromFHIR(encounterFhirIdLong,
+						EncounterResourceProvider.getType());
+				// find the visit occurrence from OMOP database.
+				VisitOccurrence newVisitOccurrence = visitOccurrenceService.findById(visitOccurrenceId);
+				if (newVisitOccurrence != null) {
+					drugExposure.setVisitOccurrence(newVisitOccurrence);
+				} else {
+					throw new FHIRException("Context Reference (Encounter/" + encounterFhirIdLong
+							+ ") couldn't be found in our local database");
 				}
 			}
 		}
@@ -706,7 +681,6 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 								reasonsForStopped = reasonsForStopped.concat(" " + rNTOmopConcept.getConceptName());
 							}
 						} catch (FHIRException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 					} else {

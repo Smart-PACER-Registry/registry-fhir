@@ -123,6 +123,14 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 			omopId = IdMapping.getOMOPfromFHIR(fhirIdLong, ConditionResourceProvider.getType());
 		}
 
+		/* check if we already have this entry by looking up the fhir_resource_deduplicate table.
+		 * We use identifier to check.
+		 */ 
+		Long omopIdFound = findOMOPEntity(fhirResource.getIdentifier(), "Condition");
+		if (omopIdFound != 0L) {
+			omopId = omopIdFound;
+		}
+
 		ConditionOccurrence conditionOccurrence = constructOmop(omopId, fhirResource);
 
 		// TODO: Do you need to call other services to update links resources.
@@ -131,6 +139,9 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 			retval = conditionOccurrenceService.update(conditionOccurrence).getId();
 		} else {
 			retval = conditionOccurrenceService.create(conditionOccurrence).getId();
+			
+			// Create a deduplicate entry
+			createDuplicateEntry(fhirResource.getIdentifier(), "Condition", retval);	
 		}
 
 		return IdMapping.getFHIRfromOMOP(retval, ConditionResourceProvider.getType());
@@ -482,28 +493,6 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 		String valueSourceString = null;
 		Concept concept = fhirCode2OmopConcept(conceptService, code, valueSourceString);
 		conditionOccurrence.setConditionConcept(concept);
-
-//		if (code != null) {
-//			List<Coding> codes = code.getCoding();
-//			Concept omopConcept;
-//			// there is only one so get the first
-//			try {
-//				omopConcept = CodeableConceptUtil.getOmopConceptWithFhirConcept(conceptService, codes.get(0));
-//				// set the concept
-//				conditionOccurrence.setConceptId(omopConcept);
-//			} catch (FHIRException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//		} else {
-//			// is there a generic condition concept to use?
-//			try {
-//				throw new FHIRException("FHIR Resource does not contain a Condition Code.");
-//			} catch (FHIRException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//		}
 		
 		// get the start and end date. We are expecting both to be of type DateTimeType
 		Type onSet = fhirResource.getOnset();

@@ -863,7 +863,6 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 						// If system is empty, then we check UCUM for the unit.
 						omopVocabulary = OmopCodeableConceptMapping.UCUM.getOmopVocabulary();
 					} else {
-//						omopVocabulary = OmopCodeableConceptMapping.omopVocabularyforFhirUri(unitSystem);
 						omopVocabulary = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(unitSystem);
 					}
 					concept = CodeableConceptUtil.getOmopConceptWithOmopVacabIdAndCode(conceptService, omopVocabulary,
@@ -895,7 +894,6 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 						continue;
 					}
 
-//					String omopVocabulary = OmopCodeableConceptMapping.omopVocabularyforFhirUri(fhirSystem);
 					String omopVocabulary = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(fhirSystem);
 					concept = CodeableConceptUtil.getOmopConceptWithOmopVacabIdAndCode(conceptService, omopVocabulary,
 							fhirCode);
@@ -1024,12 +1022,6 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 				// We have no observation to update.
 				throw new FHIRException("We have no matching FHIR Observation (Observation) to update.");
 			}
-		}
-
-		Identifier identifier = fhirResource.getIdentifierFirstRep();
-		if (identifier != null && !identifier.isEmpty()) {
-			// This will be overwritten if we fail to get code mapped to concept id.
-			observation.setObservationSourceValue(identifier.getValue());
 		}
 
 		Long fhirSubjectId = fhirResource.getSubject().getReferenceElement().getIdPartAsLong();
@@ -1411,8 +1403,6 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			commentText += text2use;
 		}
 
-		FResourceDeduplicate fResourceDeduplicate = new FResourceDeduplicate();
-		fResourceDeduplicate.setFhirResourceType(ObservationResourceProvider.getType());
 		if (entityMap != null && ((String) entityMap.get("type")).equalsIgnoreCase("measurement")) {
 			measurements = (List<Measurement>) entityMap.get("entity");
 
@@ -1427,8 +1417,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 						retId = measurementService.create(m).getId();
 
 						// Create a deduplicate entry
-						List<Identifier> identifiers = fhirResource.getIdentifier();
-						createDuplicateEntry(identifiers, "Measurement", retId);
+						createDuplicateEntry(fhirResource.getIdentifier(), "Measurement", retId);
 					}
 					if (m.getMeasurementConcept().getId() == OmopObservation.SYSTOLIC_CONCEPT_ID) {
 						retvalSystolic = retId;
@@ -1462,8 +1451,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 				retId = observationService.create(observation).getId();
 
 				// Create a deduplicate entry
-				List<Identifier> identifiers = fhirResource.getIdentifier();
-				createDuplicateEntry(identifiers, "Observation", retId);
+				createDuplicateEntry(fhirResource.getIdentifier(), "Observation", retId);
 			}
 
 			date = observation.getObservationDate();
@@ -1650,7 +1638,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 		mapList.add(factParam);
 
 		List<FactRelationship> factSearchOut = factRelationshipService.searchWithParams(0, 0, mapList, null);
-		if (!factSearchOut.isEmpty()) {
+		if (factSearchOut.isEmpty()) {
 			factRelationshipService.create(factRelationship);
 		}
 	}

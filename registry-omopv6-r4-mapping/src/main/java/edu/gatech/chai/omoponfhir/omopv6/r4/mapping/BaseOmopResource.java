@@ -125,16 +125,15 @@ public abstract class BaseOmopResource<v extends Resource, t extends BaseEntity,
 	 * search for duplicates.
 	 */
 	protected Long findOMOPEntity(List<Identifier> identifiers, String domainId) {
-		List<ParameterWrapper> paramList = new ArrayList<ParameterWrapper>();
 
 		for (Identifier identifier : identifiers) {
-			paramList.clear();
+			List<ParameterWrapper> paramList = new ArrayList<ParameterWrapper>();
 
 			// FHIR Resource Type parameter
 			ParameterWrapper resourceParam = new ParameterWrapper();
 			resourceParam.setParameterType("String");
 			resourceParam.setParameters(Arrays.asList("domainId", "fhirResourceType", "fhirIdentifierSystem", "fhirIdentifierValue"));
-			resourceParam.setOperators(Arrays.asList("="));
+			resourceParam.setOperators(Arrays.asList("=", "=", "=", "="));
 			resourceParam.setValues(Arrays.asList(domainId, getMyFhirResourceType(), identifier.getSystem(), identifier.getValue()));
 			resourceParam.setRelationship("and");
 
