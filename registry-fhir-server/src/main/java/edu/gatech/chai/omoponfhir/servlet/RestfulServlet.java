@@ -18,8 +18,8 @@ package edu.gatech.chai.omoponfhir.servlet;
 import java.util.*;
 
 import edu.gatech.chai.omoponfhir.security.OIDCInterceptor;
-import edu.gatech.chai.omoponfhir.omopv6.r4.provider.*;
-import edu.gatech.chai.omoponfhir.omopv6.r4.utilities.StaticValues;
+import edu.gatech.chai.omoponfhir.omopv5.r4.provider.*;
+import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.StaticValues;
 import edu.gatech.chai.omoponfhir.r4.security.SMARTonFHIRConformanceStatement;
 
 import org.springframework.web.cors.CorsConfiguration;
@@ -55,7 +55,7 @@ public class RestfulServlet extends RestfulServer {
 	@Override
 	public void initialize() {
 		// Set server name
-		setServerName("OMOPonFHIR for FHIR R4 and OMOPv5.3");
+		setServerName("OMOPonFHIR for FHIR R4 and OMOPv5.4");
 
 		// If we have system environment variable to hardcode the base URL, do it now.
 		String serverBaseUrl = System.getenv("SERVERBASE_URL");
@@ -142,22 +142,6 @@ public class RestfulServlet extends RestfulServer {
 		plainProviders.add(serverOperations);
 
 		registerProviders(plainProviders);
-		/*
-		 * Set conformance provider
-		 */
-		String authServerUrl = System.getenv("SMART_AUTHSERVERURL");
-		String tokenServerUrl = System.getenv("SMART_TOKENSERVERURL");
-
-		// CapabilityStatement must be loaded after providers.
-		SMARTonFHIRConformanceStatement capbilityProvider = new SMARTonFHIRConformanceStatement(this);
-		capbilityProvider.setPublisher("Georgia Tech - CHAI");
-
-		if (authServerUrl != null && !authServerUrl.isEmpty())
-			capbilityProvider.setAuthServerUrl(authServerUrl);
-		if (tokenServerUrl != null && !tokenServerUrl.isEmpty())
-			capbilityProvider.setTokenServerUrl(tokenServerUrl);
-
-		setServerConformanceProvider(capbilityProvider);
 
 		/*
 		 * Add page provider. Use memory based on for now.
@@ -205,36 +189,14 @@ public class RestfulServlet extends RestfulServer {
 		/*
 		 * OpenID check interceptor to support SMART on FHIR
 		 */
-
-//		String url = System.getenv("SMART_INTROSPECTURL");
-//		String authBasic = System.getenv("AUTH_BASIC");
-//		String client_id = System.getenv("SMART_CLIENTID");
-//		String client_secret = System.getenv("SMART_CLIENTSECRET");
-//		String read_only = System.getenv("FHIR_READONLY");
-////    	String local_bypass = System.getenv("LOCAL_BYPASS");
-//
-//		if (url == null)
-//			url = getServletConfig().getInitParameter("introspectUrl");
-//		if (authBasic == null)
-//			authBasic = "None";
-//		if (client_id == null)
-//			client_id = getServletConfig().getInitParameter("clientId");
-//		if (client_secret == null)
-//			client_secret = getServletConfig().getInitParameter("clientSecret");
-////    	if (local_bypass == null) 
-////    		local_bypass = getServletConfig().getInitParameter("localByPass");
-//		if (read_only == null)
-//			read_only = getServletConfig().getInitParameter("readOnly");
-
 		OIDCInterceptor oIDCInterceptor = new OIDCInterceptor();
-//		oIDCInterceptor.setIntrospectUrl(url);
-//		oIDCInterceptor.setAuthBasic(authBasic);
-//		oIDCInterceptor.setClientId(client_id);
-//		oIDCInterceptor.setClientSecret(client_secret);
-////		oIDCInterceptor.setLocalByPass(local_bypass);
-//		oIDCInterceptor.setReadOnly(read_only);
-
 		registerInterceptor(oIDCInterceptor);
+
+		/*
+		 * Register Custom CompatibilityStatement
+		 */
+		SMARTonFHIRConformanceStatement smartOnFHIRConformanceStatement = new SMARTonFHIRConformanceStatement();
+		registerInterceptor(smartOnFHIRConformanceStatement);
 
 		/*
 		 * Tells the server to return pretty-printed responses by default

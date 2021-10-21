@@ -20,56 +20,66 @@ package edu.gatech.chai.omoponfhir.r4.security;
 
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-
-import ca.uhn.fhir.rest.server.provider.ServerCapabilityStatementProvider;
+import org.hl7.fhir.instance.model.api.IBaseConformance;
 import org.hl7.fhir.r4.model.CapabilityStatement;
 import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementRestComponent;
 import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementRestResourceComponent;
 import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementRestSecurityComponent;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
+import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.DecimalType;
 import org.hl7.fhir.r4.model.Extension;
 import org.hl7.fhir.r4.model.UriType;
 
-import ca.uhn.fhir.rest.api.server.RequestDetails;
-import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.interceptor.api.Hook;
+import ca.uhn.fhir.interceptor.api.Interceptor;
+import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.util.ExtensionConstants;
-import edu.gatech.chai.omoponfhir.omopv6.r4.utilities.ExtensionUtil;
+import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
 
 /**
  * @author mc142local
  *
  */
-public class SMARTonFHIRConformanceStatement extends ServerCapabilityStatementProvider {
-
-	// static String authorizeURI =
-	// "http://fhir-registry.smarthealthit.org/Profile/oauth-uris#authorize";
-	// static String tokenURI =
-	// "http://fhir-registry.smarthealthit.org/Profile/oauth-uris#token";
-	// static String registerURI =
-	// "http://fhir-registry.smarthealthit.org/Profile/oauth-uris#register";
-
+@Interceptor
+public class SMARTonFHIRConformanceStatement {
 	static String oauthURI = "http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris";
 	static String authorizeURI = "authorize";
 	static String tokenURI = "token";
 	static String registerURI = "register";
 
-	String authorizeURIvalue = "http://localhost:8080/authorize";
-	String tokenURIvalue = "http://localhost:8080/token";
+	String authorizeUrlValue = "http://localhost:8080/authorize";
+ 	String tokenUrlValue = "http://localhost:8080/token";
 
-	public SMARTonFHIRConformanceStatement(RestfulServer theRestfulServer) {
-		super(theRestfulServer);
+	public SMARTonFHIRConformanceStatement() {
+		String authorizeUrl = System.getenv("SMART_AUTHSERVERURL");
+		String tokenUrl = System.getenv("SMART_TOKENSERVERURL");
+
+		if (authorizeUrl != null && !authorizeUrl.isEmpty()) {
+			authorizeUrlValue = authorizeUrl;
+		}
+
+		if (tokenUrl != null && !tokenUrl.isEmpty()) {
+			tokenUrlValue = tokenUrl;
+		}
+
 	}
 
-	@Override
-	public CapabilityStatement getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
-		CapabilityStatement conformanceStatement = (CapabilityStatement) super.getServerConformance(theRequest, theRequestDetails);
-
+	@Hook(Pointcut.SERVER_CAPABILITY_STATEMENT_GENERATED)
+	public void customize(IBaseConformance theCapabilityStatement) {
+		CapabilityStatement cs = (CapabilityStatement) theCapabilityStatement;
 		Map<String, Long> counts = ExtensionUtil.getResourceCounts();
 
-		for (CapabilityStatementRestComponent rest : conformanceStatement.getRest()) {
+		cs
+         .getSoftware()
+         .setName("OMOP v5.3.1 on FHIR R4")
+         .setVersion("v1.2.1")
+         .setReleaseDateElement(new DateTimeType("2021-09-21"));
+
+		cs.setPublisher("Georgia Tech Research Institute - HEAT");
+
+		for (CapabilityStatementRestComponent rest : cs.getRest()) {
 			for (CapabilityStatementRestResourceComponent nextResource : rest.getResource()) {
 				Long count = counts.get(nextResource.getTypeElement().getValueAsString());
 				if (count != null) {
@@ -95,26 +105,27 @@ public class SMARTonFHIRConformanceStatement extends ServerCapabilityStatementPr
 
 			Extension authorizeExtension = new Extension();
 			authorizeExtension.setUrl(authorizeURI);
-			authorizeExtension.setValue(new UriType(authorizeURIvalue));
+			authorizeExtension.setValue(new UriType(authorizeUrlValue));
 
 			Extension tokenExtension = new Extension();
 			tokenExtension.setUrl(tokenURI);
-			tokenExtension.setValue(new UriType(tokenURIvalue));
+			tokenExtension.setValue(new UriType(tokenUrlValue));
 
 			secExtension.addExtension(authorizeExtension);
 			secExtension.addExtension(tokenExtension);
 
 			restSec.addExtension(secExtension);
+
 			rest.setSecurity(restSec);
 		}
-		return conformanceStatement;
 	}
 
-	public void setAuthServerUrl(String url) {
-		authorizeURIvalue = url;
+	public void setAuthServerUrl(String authorizeUrlValue) {
+		this.authorizeUrlValue = authorizeUrlValue;
 	}
 
-	public void setTokenServerUrl(String url) {
-		tokenURIvalue = url;
+	public void setTokenServerUrl(String tokenUrlValue) {
+		this.tokenUrlValue = tokenUrlValue;
 	}
+
 }

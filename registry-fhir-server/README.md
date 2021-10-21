@@ -1,2 +1,2 @@
 # omoponfhir-r4-server
-OMOPv6 on FHIR R4
+omopv5 on FHIR R4

@@ -39,8 +39,8 @@
 	<description>Registry Server Build</description>
 
 	<modules>
-		<module>registry-omopv6-jpabase</module>
-		<module>registry-omopv6-r4-mapping</module>
+		<module>registry-omopv5-sql</module>
+		<module>registry-omopv5-r4-mapping</module>
 		<module>registry-fhir-server</module>
 	</modules>
 
