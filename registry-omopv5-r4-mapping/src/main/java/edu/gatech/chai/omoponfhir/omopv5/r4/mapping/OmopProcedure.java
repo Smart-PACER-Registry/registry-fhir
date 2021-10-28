@@ -35,9 +35,7 @@ import org.hl7.fhir.exceptions.FHIRException;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
-import ca.uhn.fhir.rest.param.DateParam;
 import ca.uhn.fhir.rest.param.DateRangeParam;
-import ca.uhn.fhir.rest.param.ParamPrefixEnum;
 import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.EncounterResourceProvider;
@@ -58,8 +56,7 @@ import edu.gatech.chai.omopv5.model.entity.ProcedureOccurrence;
 import edu.gatech.chai.omopv5.model.entity.Provider;
 import edu.gatech.chai.omopv5.model.entity.VisitOccurrence;
 
-public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurrence, ProcedureOccurrenceService>
-		implements IResourceMapping<Procedure, ProcedureOccurrence> {
+public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurrence, ProcedureOccurrenceService> {
 
 	private static OmopProcedure omopProcedure = new OmopProcedure();
 	private ConceptService conceptService;
@@ -72,6 +69,9 @@ public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurren
 	public OmopProcedure(WebApplicationContext context) {
 		super(context, ProcedureOccurrence.class, ProcedureOccurrenceService.class, ProcedureResourceProvider.getType());
 		initialize(context);
+		
+		// Get count and put it in the counts.
+		getSize();
 	}
 
 	public OmopProcedure() {
@@ -84,10 +84,6 @@ public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurren
 		fPersonService = context.getBean(FPersonService.class);
 		visitOccurrenceService = context.getBean(VisitOccurrenceService.class);
 		providerService = context.getBean(ProviderService.class);
-		
-		// Get count and put it in the counts.
-		getSize();
-
 	}
 	
 	public static OmopProcedure getInstance() {
@@ -425,7 +421,6 @@ public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurren
 		}
 		
 		// Person mapping
-		try {
 		Reference patientReference = fhirResource.getSubject();
 		if (patientReference.getReferenceElement().getResourceType().equals(PatientResourceProvider.getType())) {
 			Long patientFhirId = patientReference.getReferenceElement().getIdPartAsLong();
@@ -461,10 +456,6 @@ public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurren
 			}
 		} else {
 			throw new FHIRException("Context must be Encounter");
-		}
-
-		} catch (FHIRException e) {
-			e.printStackTrace();
 		}
 
 		// Provider mapping
@@ -509,20 +500,20 @@ public class OmopProcedure extends BaseOmopResource<Procedure, ProcedureOccurren
 		
 		// Procedure Date mapping. Use start date for Period.
 		try {
-		Type performedType = fhirResource.getPerformed();
-		if (!performedType.isEmpty()) {
-			Date performedDate = null;
-			if (performedType instanceof DateTimeType) {
-				// PerformedDateTime
-				performedDate = performedType.castToDateTime(performedType).getValue();
-			} else {
-				// PerformedPeriod
-				performedDate = performedType.castToPeriod(performedType).getStart();
+			Type performedType = fhirResource.getPerformed();
+			if (!performedType.isEmpty()) {
+				Date performedDate = null;
+				if (performedType instanceof DateTimeType) {
+					// PerformedDateTime
+					performedDate = performedType.castToDateTime(performedType).getValue();
+				} else {
+					// PerformedPeriod
+					performedDate = performedType.castToPeriod(performedType).getStart();
+				}
+				
+				if (performedDate != null)
+					procedureOccurrence.setProcedureDate(performedDate);
 			}
-			
-			if (performedDate != null)
-				procedureOccurrence.setProcedureDate(performedDate);
-		}
 		} catch (FHIRException e) {
 			e.printStackTrace();
 		}

@@ -59,8 +59,8 @@ public class FPersonServiceImp extends BaseEntityServiceImp<FPerson> implements 
 
 	public FPerson searchByNameAndLocation(String familyName, String given1Name, String given2Name, Location location) {
 		FPerson entity = null;
-		
-		String queryString = "select t from " + FPerson._getTableName() + " t WHERE";
+
+		String queryString = constructSqlSelectWithoutWhere() + " where ";
 		List<String> parameterList = new ArrayList<String>();
 		List<String> valueList = new ArrayList<String>();
 

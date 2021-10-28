@@ -39,20 +39,12 @@ import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ConditionResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
-import edu.gatech.chai.omopv5.dba.service.ConditionOccurrenceService;
-import edu.gatech.chai.omopv5.dba.service.FPersonService;
-import edu.gatech.chai.omopv5.dba.service.MeasurementService;
-import edu.gatech.chai.omopv5.dba.service.ObservationService;
 import edu.gatech.chai.omopv5.model.entity.SSession;
 
 public class OmopServerOperations {
 	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OmopServerOperations.class);
-	private static OmopServerOperations omopServerOperations = new OmopServerOperations();
 
-	// private FPersonService fPersonService;
-	// private ObservationService observationService;
-	// private MeasurementService measurementService;
-	// private ConditionOccurrenceService conditionOccurrenceService;
+	private static OmopServerOperations omopServerOperations = new OmopServerOperations();
 
 	private Map<String, String> referenceIds;
 
@@ -65,10 +57,6 @@ public class OmopServerOperations {
 	}
 
 	private void initialize(WebApplicationContext context) {
-		// fPersonService = context.getBean(FPersonService.class);
-		// observationService = context.getBean(ObservationService.class);
-		// measurementService = context.getBean(MeasurementService.class);
-		// conditionOccurrenceService = context.getBean(ConditionOccurrenceService.class);
 		referenceIds = new HashMap<String, String>();
 	}
 

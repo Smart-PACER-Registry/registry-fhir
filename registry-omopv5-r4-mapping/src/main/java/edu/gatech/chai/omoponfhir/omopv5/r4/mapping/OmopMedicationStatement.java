@@ -32,8 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
-import ca.uhn.fhir.rest.param.DateParam;
-import ca.uhn.fhir.rest.param.ParamPrefixEnum;
+import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.param.TokenParamModifier;
@@ -43,6 +42,7 @@ import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResource
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PractitionerResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.CodeableConceptUtil;
+import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.DateUtil;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.TerminologyServiceClient;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ThrowFHIRExceptions;
 import edu.gatech.chai.omopv5.dba.service.ConceptService;
@@ -82,8 +82,7 @@ import edu.gatech.chai.omopv5.model.entity.VisitOccurrence;
  *         It's hard to distinguish the medicaitons for MedicationStatement.
  *
  */
-public class OmopMedicationStatement extends BaseOmopResource<MedicationStatement, DrugExposure, DrugExposureService>
-		implements IResourceMapping<MedicationStatement, DrugExposure> {
+public class OmopMedicationStatement extends BaseOmopResource<MedicationStatement, DrugExposure, DrugExposureService> {
 	private static final Logger logger = LoggerFactory.getLogger(OmopMedicationStatement.class);
 
 	private static Long MEDICATIONSTATEMENT_CONCEPT_TYPE_ID = 44787730L;
@@ -96,6 +95,9 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 	public OmopMedicationStatement(WebApplicationContext context) {
 		super(context, DrugExposure.class, DrugExposureService.class, MedicationStatementResourceProvider.getType());
 		initialize(context);
+
+		// Get count and put it in the counts.
+		getSize();
 	}
 
 	public OmopMedicationStatement() {
@@ -109,9 +111,6 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 		conceptService = context.getBean(ConceptService.class);
 		providerService = context.getBean(ProviderService.class);
 		fPersonService = context.getBean(FPersonService.class);
-
-		// Get count and put it in the counts.
-		getSize();
 	}
 
 	public static OmopMedicationStatement getInstance() {
@@ -525,30 +524,12 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 			}
 			break;
 		case MedicationStatement.SP_EFFECTIVE:
-			DateParam effectiveDateParam = ((DateParam) value);
-			ParamPrefixEnum apiOperator = effectiveDateParam.getPrefix();
-			String sqlOperator = null;
-			if (apiOperator.equals(ParamPrefixEnum.GREATERTHAN)) {
-				sqlOperator = ">";
-			} else if (apiOperator.equals(ParamPrefixEnum.GREATERTHAN_OR_EQUALS)) {
-				sqlOperator = ">=";
-			} else if (apiOperator.equals(ParamPrefixEnum.LESSTHAN)) {
-				sqlOperator = "<";
-			} else if (apiOperator.equals(ParamPrefixEnum.LESSTHAN_OR_EQUALS)) {
-				sqlOperator = "<=";
-			} else if (apiOperator.equals(ParamPrefixEnum.NOT_EQUAL)) {
-				sqlOperator = "!=";
-			} else {
-				sqlOperator = "=";
-			}
-			Date effectiveDate = effectiveDateParam.getValue();
-
-			paramWrapper.setParameterType("Date");
-			paramWrapper.setParameters(Arrays.asList("drugExposureStartDate"));
-			paramWrapper.setOperators(Arrays.asList(sqlOperator));
-			paramWrapper.setValues(Arrays.asList(String.valueOf(effectiveDate.getTime())));
-			paramWrapper.setRelationship("or");
-			mapList.add(paramWrapper);
+			DateRangeParam effectiveDateParam = ((DateRangeParam) value);
+			paramWrapper.setUpperRelationship("or"); // or these two maps
+			DateUtil.constructParameterWrapper(effectiveDateParam, "drugExposureStartDate", paramWrapper, mapList);
+			ParameterWrapper paramWrapper1 = new ParameterWrapper();
+			paramWrapper1.setUpperRelationship("or");
+			DateUtil.constructParameterWrapper(effectiveDateParam, "drugExposureEndDate", paramWrapper1, mapList);
 			break;
 		case "Patient:" + Patient.SP_RES_ID:
 			addParamlistForPatientIDName(parameter, (String) value, paramWrapper, mapList);
@@ -841,7 +822,7 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 						qty=doseAndRate.getDoseQuantity();
 					}
 				}
-				if (!qty.isEmpty() && qty!=null) {
+				if (qty!=null && !qty.isEmpty()) {
 					// get value
 					BigDecimal value = qty.getValue();
 					if (value != null) {
@@ -872,7 +853,6 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 					}
 				}
 			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

@@ -1,7 +1,7 @@
 package edu.gatech.chai.omopv5.dba.service;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,13 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 		// 44818800 = Using finding method
 		// 58 = Type Concept, 26 = Note Type
 		// 44818721 = Contains
-		String queryString = "SELECT t FROM FactRelationship t WHERE domain_concept_id_1 = 21 AND relationship_concept_id = 44818800 AND fact_id_1 = @fact1";
+		String queryString = "SELECT fact_relationship.domain_concept_id_1 as fact_relationship_domain_concept_id_1, "
+			+ "fact_relationship.fact_id_1 as fact_relationship_fact_id_1, "
+			+ "fact_relationship.domain_concept_id_2 as fact_relationship_domain_concept_id_2, "
+			+ "fact_relationship.fact_id_2 as fact_reationship_fact_id_2, "
+			+ "fact_relationship.relationship_concept_id as fact_relationship_relationship_concept_id "
+			+ "FROM fact_relationship fact_relationship WHERE fact_relationship.domain_concept_id_1 = 21 "
+			+ "AND fact_relationship.relationship_concept_id = 44818800 AND fact_relationship.fact_id_1 = @fact1";
 		parameterList.add("fact1");
 		valueList.add(domainId.toString());
 
@@ -82,14 +88,12 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 
 				String query = SqlTranslate.translateSql(queryString, databaseConfig.getSqlRenderTargetDialect());
 				logger.debug("searchMeasurementUsingMethod: Query after SqlRender translate to " + databaseConfig.getSqlRenderTargetDialect() + ": " + query);
-		
-				Connection connection = getConnection();
-		
-				Statement stmt = connection.createStatement();
+				
+				Statement stmt = getConnection().createStatement();
 				ResultSet rs = stmt.executeQuery(query);
 	
 				while (rs.next()) {
-					FactRelationship entity = construct(rs, null, "t");
+					FactRelationship entity = construct(rs, null, "fact_relationship");
 
 					Long domainConcept2 = entity.getDomainConceptId2();
 					Long fact2 = entity.getFactId2();
@@ -105,10 +109,13 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 //					if (entity != null)
 //						entities.add(new Note(entity.getFactId1()));
 				}
-
-				closeConnection(connection);
 			}
 		} catch (Exception e) {
+			try {
+				closeConnection();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
 			e.printStackTrace();
 		}
 
@@ -125,7 +132,13 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 		List<String> valueList = new ArrayList<String>();
 
 		// 44818721 = Contains
-		String queryString = "SELECT t FROM FactRelationship t WHERE domain_concept_id_1 = 21 AND fact_id_1 = @fact1 AND domain_concept_id_2 = 26 AND relationship_concept_id = 44818721";
+		String queryString = "SELECT fact_relationship.domain_concept_id_1 as fact_relationship_domain_concept_id_1, "
+			+ "fact_relationship.fact_id_1 as fact_relationship_fact_id_1, "
+			+ "fact_relationship.domain_concept_id_2 as fact_relationship_domain_concept_id_2, "
+			+ "fact_relationship.fact_id_2 as fact_reationship_fact_id_2, "
+			+ "fact_relationship.relationship_concept_id as fact_relationship_relationship_concept_id "
+			+ "FROM fact_relationship fact_relationship WHERE fact_relationship.domain_concept_id_1 = 21 "
+			+ "AND fact_relationship.fact_id_1 = @fact1 AND fact_relationship.domain_concept_id_2 = 26 AND fact_relationship.relationship_concept_id = 44818721";
 		parameterList.add("fact1");
 		valueList.add(domainId.toString());
 
@@ -146,20 +159,21 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 				String query = SqlTranslate.translateSql(queryString, databaseConfig.getSqlRenderTargetDialect());
 				logger.debug("searchMeasurementContainsComments: Query after SqlRender translate to " + databaseConfig.getSqlRenderTargetDialect() + ": " + query);
 		
-				Connection connection = getConnection();
-		
-				Statement stmt = connection.createStatement();
+				Statement stmt = getConnection().createStatement();
 				ResultSet rs = stmt.executeQuery(query);
 	
 				while (rs.next()) {
-					FactRelationship entity = construct(rs, null, "t");
+					FactRelationship entity = construct(rs, null, "fact_relationship");
 					if (entity != null)
 						entities.add(new Note(entity.getFactId1()));
 				}
-
-				closeConnection(connection);
 			}
 		} catch (Exception e) {
+			try {
+				closeConnection();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
 			e.printStackTrace();
 		}
 		
@@ -173,7 +187,7 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 			Long factId2, Long relationshipId) {
 		List<FactRelationship> entities = new ArrayList<FactRelationship>();
 
-		String queryString = "SELECT fact_relationship.domain_concept_id_1 as fact_relationship_domain_concept_id_1 "
+		String queryString = "SELECT fact_relationship.domain_concept_id_1 as fact_relationship_domain_concept_id_1, "
 			+ "fact_relationship.fact_id_1 as fact_relationship_fact_id_1, "
 			+ "fact_relationship.domain_concept_id_2 as fact_relationship_domain_concept_id_2, "
 			+ "fact_relationship.fact_id_2 as fact_reationship_fact_id_2, "
@@ -264,6 +278,11 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 				// }
 			}
 		} catch (Exception e) {
+			try {
+				closeConnection();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
 			e.printStackTrace();
 		}
 
@@ -281,19 +300,16 @@ public class FactRelationshipServiceImp extends BaseEntityServiceImp<FactRelatio
 
 	@Override
 	public FactRelationship findById(Long id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Long removeById(Long id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public FactRelationship update(FactRelationship entity) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

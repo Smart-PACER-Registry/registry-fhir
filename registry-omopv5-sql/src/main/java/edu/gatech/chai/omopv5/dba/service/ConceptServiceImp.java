@@ -20,8 +20,6 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.google.cloud.bigquery.FieldValueList;
@@ -36,7 +34,6 @@ import edu.gatech.chai.omopv5.model.entity.IBaseEntity;
  */
 @Service
 public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements ConceptService {
-	private static final Logger logger = LoggerFactory.getLogger(Concept.class);
 
 	/**
 	 * Instantiates a new concept service imp.
@@ -53,6 +50,7 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 	 * chai.omopv5.model.entity.Concept)
 	 */
 	public List<Concept> getIngredient(Concept concept) {
+
 		List<Concept> concepts = new ArrayList<Concept>();
 
 		if ("Ingredient".equals(concept.getConceptClassId())) {
@@ -64,48 +62,60 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 		List<String> valueList = new ArrayList<String>();
 
 		String sql = null;
+		String sqlWithoutWhere = constructSqlSelectWithoutWhere();
 		if ("NDC".equals(concept.getVocabularyId())) {
 			// Use JPQL
-			sql = "select concept.concept_id as concept_concept_id, concept.concept_name as concept_concept_name, concept.domain_id as concdpt_domain_id, " 
-				+ "concept.vocabulary_id as concept_vocabulary_id, concept.concept_class_id as concept_concept_class_id, "
-				+ "concept.standard_concept as concept_standard_concept, concept.concept_code as concept_concept_code, "
-				+ "concept.valid_start_date as concept_valid_start_date, concept.valid_end_date as concept_valid_end_date, "
-				+ "concept.invalid_reason as concept_invalid_reason "
-				+ "FROM concept concept " + "JOIN concept_relationship cr on concept.concept_id = cr.concept_id_1 "
+			sql = sqlWithoutWhere 
+				+ " JOIN concept_relationship cr on concept.concept_id = cr.concept_id_1 "
 				+ "AND cr.relationship_id = 'Maps to' " + "AND cr.invalid_reason is null "
 				+ "JOIN concept tar on cr.concept_id_2 = tar.id " + "AND tar.standard_concept = 'S' "
 				+ "AND tar.invalid_reason is null " + "JOIN concept_ancestor ca ON ca.ancestor_concept_id = tar.concept_id "
-				+ "JOIN concept c ON ca.ancestor_concept_id = c.concept_id " + "WHERE concept.concept_code = @med_code "
-				+ "AND 'NDC' = concpet.vocabulary_id " + "AND c.vocabulary_id = 'RxNorm' "
+				+ "JOIN concept c ON ca.ancestor_concept_id = c.concept_id "
+				+ " WHERE concept.concept_code = @med_code "
+				+ "AND 'NDC' = concept.vocabulary_id " + "AND c.vocabulary_id = 'RxNorm' "
 				+ "AND c.concept_class_id = 'Ingredient' " + "AND concept.invalid_reason is null";
+			// sql = "select c " + "FROM concept src " + "JOIN concept_relationship cr on src.id = cr.conceptId1 "
+			// 		+ "AND cr.relationship_id = 'Maps to' " + "AND cr.invalid_reason is null "
+			// 		+ "JOIN Concept tar on cr.conceptId2 = tar.id " + "AND tar.standardConcept = 'S' "
+			// 		+ "AND tar.invalidReason is null " + "JOIN ConceptAncestor ca ON ca.ancestorConcept = tar.id "
+			// 		+ "JOIN Concept c ON ca.ancestorConcept = c.id " + "WHERE src.conceptCode = :med_code "
+			// 		+ "AND 'NDC' = src.vocabulary " + "AND c.vocabulary = 'RxNorm' "
+			// 		+ "AND c.conceptClass = 'Ingredient' " + "AND src.invalidReason is null";
 		} else if ("RxNorm".equals(concept.getVocabularyId())) {
 			// when RxNorm.
-			sql = "select concept.concept_id as concept_concept_id, concept.concept_name as concept_concept_name, concept.domain_id as concdpt_domain_id, " 
-				+ "concept.vocabulary_id as concept_vocabulary_id, concept.concept_class_id as concept_concept_class_id, "
-				+ "concept.standard_concept as concept_standard_concept, concept.concept_code as concept_concept_code, "
-				+ "concept.valid_start_date as concept_valid_start_date, concept.valid_end_date as concept_valid_end_date, "
-				+ "concept.invalid_reason as concept_invalid_reason "
-				+ "FROM concept concept " + "JOIN concept_ancestor ca ON ca.descendant_concept = concept.concept_id "
-				+ "JOIN concept c ON ca.ancestor_concept = c.concept_id " + "WHERE concept.concept_code = @med_code "
+			sql = sqlWithoutWhere 
+				+ " JOIN concept_ancestor ca ON ca.descendant_concept_id = concept.concept_id "
+				+ "JOIN concept c ON ca.ancestor_concept_id = c.concept_id "
+				+ " WHERE concept.concept_code = @med_code "
 				+ "AND 'RxNorm' = concept.vocabulary_id " + "AND c.vocabulary_id = 'RxNorm' "
 				+ "AND c.concept_class_id = 'Ingredient' " + "AND concept.invalid_reason is null "
 				+ "AND c.invalid_reason is null";
+			// sql = "select c " + "FROM Concept src " + "JOIN ConceptAncestor ca ON ca.descendantConcept = src.id "
+			// 		+ "JOIN Concept c ON ca.ancestorConcept = c.id " + "WHERE src.conceptCode = :med_code "
+			// 		+ "AND 'RxNorm' = src.vocabulary " + "AND c.vocabulary = 'RxNorm' "
+			// 		+ "AND c.conceptClass = 'Ingredient' " + "AND src.invalidReason is null "
+			// 		+ "AND c.invalidReason is null";
 		} else {
 			return concepts;
 		}
 
 		parameterList.add("med_code");
-		valueList.add(concept.getConceptCode());
-
+		valueList.add("'"+concept.getConceptCode()+"'");
 		sql = renderedSql(sql, parameterList, valueList);
 
-		logger.debug("getIngredient:" + sql);
+		System.out.println(sql);
 
 		Concept entity;
 		try {
 			if (isBigQuery()) {
 				TableResult result = runBigQuery(sql);
 				List<String> columns = listOfColumns(sql);
+//				System.out.println("++++++++++++++++++++++++++++++++++++++++");
+//				System.out.println(sql);
+//				System.out.println("++++++++++++++++++++++++++++++++++++++++");
+//				for (String column : columns) {
+//					System.out.println(column);
+//				}
 				for (FieldValueList row : result.iterateAll()) {
 					entity = construct(row, null, getSqlTableName(), columns);
 					if (entity != null) {
@@ -117,6 +127,13 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 				if (!myEntities.isEmpty()) {
 					concepts.addAll(myEntities);					
 				}
+
+				// while (rs.next()) {
+				// 	entity = ConceptService._construct(rs, null, "c");
+				// 	if (entity != null) {
+				// 		concepts.add(entity);
+				// 	}
+				// }
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -137,6 +154,7 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 
 	@Override
 	public Concept update(Concept entity) {
+		// TODO Auto-generated method stub
 		return null;
 	}
 

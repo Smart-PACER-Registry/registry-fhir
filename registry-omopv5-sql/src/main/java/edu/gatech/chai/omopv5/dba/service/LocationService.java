@@ -23,7 +23,6 @@ import java.util.List;
 
 import com.google.cloud.bigquery.FieldValueList;
 
-import edu.gatech.chai.omopv5.model.entity.Concept;
 import edu.gatech.chai.omopv5.model.entity.Location;
 
 // TODO: Auto-generated Javadoc
@@ -60,6 +59,7 @@ public interface LocationService extends IService<Location> {
 
 				if (columnInfo.equalsIgnoreCase(alias + "_location_id")) {
 					location.setId(rs.getLong(columnInfo));
+					if (rs.wasNull()) return null;
 				} else if (columnInfo.equalsIgnoreCase(alias + "_address_1")) {
 					location.setAddress1(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_address_2")) {

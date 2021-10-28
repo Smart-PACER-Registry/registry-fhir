@@ -50,6 +50,7 @@ public interface NoteService extends IService<Note> {
 
 				if (columnInfo.equalsIgnoreCase(alias + "_note_id")) {
 					note.setId(rs.getLong(columnInfo));
+					if (rs.wasNull()) return null;
 				} else if (columnInfo.equalsIgnoreCase("fPerson_person_id")) {
 					FPerson fPerson = FPersonService._construct(rs, null, "fPerson");
 					note.setFPerson(fPerson);

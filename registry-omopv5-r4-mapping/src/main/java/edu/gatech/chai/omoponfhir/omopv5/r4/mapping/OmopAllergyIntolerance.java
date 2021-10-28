@@ -65,6 +65,8 @@ public class OmopAllergyIntolerance extends BaseOmopResource<AllergyIntolerance,
 		super(context, Observation.class, ObservationService.class,
 				AllergyIntoleranceResourceProvider.getType());
 		initialize(context);
+		
+		getSize();
 	}
 
 	public OmopAllergyIntolerance() {
@@ -82,8 +84,6 @@ public class OmopAllergyIntolerance extends BaseOmopResource<AllergyIntolerance,
 		} else {
 			logger.error("context must be NOT null");
 		}
-		
-		getSize();
 	}
 
 	public static OmopAllergyIntolerance getInstance() {
@@ -102,13 +102,13 @@ public class OmopAllergyIntolerance extends BaseOmopResource<AllergyIntolerance,
 		String orderParam = new String();
 
 		if (theSort.getParamName().equals(AllergyIntolerance.SP_CODE)) {
-			orderParam = "observationConcept.conceptCode " + direction;
+			orderParam = "observationConcept_concept_code " + direction;
 		} else if (theSort.getParamName().equals(AllergyIntolerance.SP_DATE)) {
 			orderParam = "observationDate " + direction;
 		} else if (theSort.getParamName().equals(AllergyIntolerance.SP_PATIENT)) {
-			orderParam = "fPerson.id " + direction;
+			orderParam = "fPerson_person_id " + direction;
 		} else {
-			orderParam = "id " + direction;
+			orderParam = "observation_observation_id " + direction;
 		}
 
 		String orderParams = orderParam;
@@ -160,14 +160,14 @@ public class OmopAllergyIntolerance extends BaseOmopResource<AllergyIntolerance,
 		}
 		
 		if (observationConcept != null && 
-				(observationConcept.getId() == 439224L) ||
-				(observationConcept.getId() == 4166257L) ||
-				(observationConcept.getId() == 4297808L) ||
-				(observationConcept.getId() == 4299541L) ||
-				(observationConcept.getId() == 4165345L) ||
-				(observationConcept.getId() == 37017420L) ||
-				(observationConcept.getId() == 4164867L) ||
-				(observationConcept.getId() == 4171468L)) {
+				(observationConcept.getId() == 439224L ||
+				observationConcept.getId() == 4166257L ||
+				observationConcept.getId() == 4297808L ||
+				observationConcept.getId() == 4299541L ||
+				observationConcept.getId() == 4165345L ||
+				observationConcept.getId() == 37017420L ||
+				observationConcept.getId() == 4164867L ||
+				observationConcept.getId() == 4171468L)) {
 			categoryValue = AllergyIntoleranceCategory.MEDICATION;
 		} else {
 			if (observationConcept != null 
@@ -419,7 +419,7 @@ public class OmopAllergyIntolerance extends BaseOmopResource<AllergyIntolerance,
 				}
 			}
 			
-			if (matched == false) {				
+			if (!matched) {				
 				observation.setObservationConcept(new Concept(40772948L));
 			}
 			

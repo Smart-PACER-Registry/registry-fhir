@@ -50,6 +50,7 @@ public interface MeasurementService extends IService<Measurement> {
 
 				if (columnInfo.equalsIgnoreCase(alias + "_measurement_id")) {
 					measurement.setId(rs.getLong(columnInfo));
+					if (rs.wasNull()) return null;
 				} else if (columnInfo.equalsIgnoreCase("fPerson_person_id")) {
 					FPerson fPerson = FPersonService._construct(rs, null, "fPerson");
 					measurement.setFPerson(fPerson);
@@ -67,7 +68,10 @@ public interface MeasurementService extends IService<Measurement> {
 					Concept operatorConcept = ConceptService._construct(rs, null, "operatorConcept");
 					measurement.setOperationConcept(operatorConcept);
 				} else if (columnInfo.equalsIgnoreCase(alias + "_value_as_number")) {
-					measurement.setValueAsNumber(rs.getDouble(columnInfo));
+					double valueAsNumber = rs.getDouble(columnInfo);
+					if (!rs.wasNull()) {
+						measurement.setValueAsNumber(valueAsNumber);
+					}
 				} else if (columnInfo.equalsIgnoreCase("valueAsConcept_concept_id")) {
 					Concept valueAsConcept = ConceptService._construct(rs, null, "valueAsConcept");
 					measurement.setValueAsConcept(valueAsConcept);

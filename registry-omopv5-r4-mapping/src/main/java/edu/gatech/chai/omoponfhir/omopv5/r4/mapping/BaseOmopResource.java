@@ -18,7 +18,6 @@ package edu.gatech.chai.omoponfhir.omopv5.r4.mapping;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;

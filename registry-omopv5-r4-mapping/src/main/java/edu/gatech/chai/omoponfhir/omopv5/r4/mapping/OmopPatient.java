@@ -73,8 +73,7 @@ import edu.gatech.chai.omopv5.model.entity.Location;
 import edu.gatech.chai.omopv5.model.entity.Provider;
 import edu.gatech.chai.omopv5.model.entity.VisitOccurrence;
 
-public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPersonService>
-		implements IResourceMapping<USCorePatient, FPerson> {
+public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPersonService> {
 
 	private static final Logger logger = LoggerFactory.getLogger(OmopPatient.class);
 
@@ -97,6 +96,9 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 	public OmopPatient(WebApplicationContext context) {
 		super(context, FPerson.class, FPersonService.class, PatientResourceProvider.getType());
 		initialize(context);
+		
+		// Get count and put it in the counts.
+		getSize();
 	}
 
 	public OmopPatient() {
@@ -110,10 +112,6 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		providerService = context.getBean(ProviderService.class);
 		visitOccurrenceService = context.getBean(VisitOccurrenceService.class);
 		conceptService = context.getBean(ConceptService.class);
-		
-		// Get count and put it in the counts.
-		getSize();
-
 	}
 
 	public static OmopPatient getInstance() {
@@ -333,7 +331,6 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 				maritalStatusCode.addCoding(coding);
 				patient.setMaritalStatus(maritalStatusCode);
 			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -564,15 +561,15 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		// See if this exists.
 		Long fhirId = generalPractitioner.getReferenceElement().getIdPartAsLong();
 		Long omopId = IdMapping.getOMOPfromFHIR(fhirId, PractitionerResourceProvider.getType());
-		Provider provider = (Provider) providerService.findById(omopId);
+		Provider provider = providerService.findById(omopId);
 		if (provider != null) {
 			return provider;
 		} else {
 			// Check source column to see if we have received this before.
-			provider = (Provider) providerService.searchByColumnString("providerSourceValue",
+			List<Provider> providers = providerService.searchByColumnString("providerSourceValue",
 					generalPractitioner.getReferenceElement().getIdPart());
-			if (provider != null) {
-				return provider;
+			if (!providers.isEmpty()) {
+				return providers.get(0);
 			} else {
 				provider = new Provider();
 				provider.setProviderSourceValue(generalPractitioner.getReferenceElement().getIdPart());
@@ -938,7 +935,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		List<Identifier> identifiers = patient.getIdentifier();
 		boolean first = true;
 		for (Identifier identifier : identifiers) {
-			if (identifier.getValue().isEmpty() == false) {
+			if (!identifier.getValue().isEmpty()) {
 				String personSourceValueTemp = getPersonSourceValue(identifier);
 				if (first) {
 					personSourceValue = personSourceValueTemp;
@@ -948,7 +945,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 				if (personSourceValueTemp != null) {
 					List<FPerson> fPersons = getMyOmopService().searchByColumnString("personSourceValue",
 							personSourceValueTemp);
-					if (fPersons.size() > 0) {
+					if (!fPersons.isEmpty()) {
 						fperson = fPersons.get(0);
 						omopId = fperson.getId();
 						break;
@@ -986,7 +983,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 			HumanName next = patientIterator.next();
 			// the next method was not advancing to the next element, then the
 			// need to use the get(index) method.
-			if (next.getGiven().size() > 0) {
+			if (!next.getGiven().isEmpty()) {
 				fperson.setGivenName1(next.getGiven().get(0).getValue());
 				if (next.getGiven().size() > 1) // TODO add unit tests, to assure
 												// this won't be changed to hasNext
@@ -1004,7 +1001,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		// If not, create this one.
 		List<Address> addresses = patient.getAddress();
 		Location retLocation = null;
-		if (addresses != null && addresses.size() > 0) {
+		if (addresses != null && !addresses.isEmpty()) {
 			Address address = addresses.get(0);
 			retLocation = AddressUtil.searchAndUpdate(locationService, address, null);
 			if (retLocation != null) {
@@ -1055,7 +1052,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		}
 
 		List<Reference> generalPractitioners = patient.getGeneralPractitioner();
-		if (generalPractitioners.size() > 0) {
+		if (!generalPractitioners.isEmpty()) {
 			// We can handle only one provider.
 			Provider retProvider = searchAndUpdate(generalPractitioners.get(0));
 			if (retProvider != null) {
@@ -1075,7 +1072,7 @@ public class OmopPatient extends BaseOmopResource<USCorePatient, FPerson, FPerso
 		if (maritalStat != null && !maritalStat.isEmpty()) {
 			Coding coding = maritalStat.getCodingFirstRep();
 			if (coding != null && !coding.isEmpty()) {
-				System.out.println("MARITAL STATUS:" + coding.getCode());
+				logger.debug("MARITAL STATUS:" + coding.getCode());
 				fperson.setMaritalStatus(coding.getCode());
 			}
 		}

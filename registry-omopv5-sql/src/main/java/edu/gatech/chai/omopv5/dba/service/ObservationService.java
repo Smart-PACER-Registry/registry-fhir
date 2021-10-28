@@ -50,6 +50,7 @@ public interface ObservationService extends IService<Observation> {
 
 				if (columnInfo.equalsIgnoreCase(alias + "_observation_id")) {
 					observation.setId(rs.getLong(columnInfo));
+					if (rs.wasNull()) return null;
 				} else if (columnInfo.equalsIgnoreCase("fPerson_person_id")) {
 					FPerson fPerson = FPersonService._construct(rs, null, "fPerson");
 					observation.setFPerson(fPerson);

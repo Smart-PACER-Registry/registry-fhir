@@ -89,7 +89,7 @@ public class ObservationResourceProvider implements IResourceProvider {
 	
 	private Integer getTotalSize(List<ParameterWrapper> paramList) {
 		final Long totalSize;
-		if (paramList.size() == 0) {
+		if (paramList.isEmpty()) {
 			totalSize = getMyMapper().getSize();
 		} else {
 			totalSize = getMyMapper().getSize(paramList);
@@ -313,7 +313,7 @@ public class ObservationResourceProvider implements IResourceProvider {
 		return Observation.class;
 	}
 
-	class MyBundleProvider extends OmopFhirBundleProvider implements IBundleProvider {
+	class MyBundleProvider extends OmopFhirBundleProvider {
 		Set<Include> theIncludes;
 		Set<Include> theReverseIncludes;
 

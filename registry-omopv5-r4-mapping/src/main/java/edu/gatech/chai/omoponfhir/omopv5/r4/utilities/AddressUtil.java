@@ -31,6 +31,8 @@ public class AddressUtil {
 	 * @param location : Location entity class in OMOP
 	 * @return : Location class found. Null if not found
 	 */
+	private AddressUtil() { }
+	
 	public static Location searchAndUpdate(LocationService locationService, Address address, Location location) {
 		if (address == null)
 			return null;
@@ -38,7 +40,7 @@ public class AddressUtil {
 		List<StringType> addressLines = address.getLine();
 		String line1 = null;
 		String line2 = null;
-		if (addressLines.size() > 0) {
+		if (!addressLines.isEmpty()) {
 			line1 = addressLines.get(0).getValue();
 			if (address.getLine().size() > 1) {
 				line2 = address.getLine().get(1).getValue();

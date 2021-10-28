@@ -29,8 +29,7 @@ import org.hl7.fhir.instance.model.api.IIdType;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
-import ca.uhn.fhir.rest.param.DateParam;
-import ca.uhn.fhir.rest.param.ParamPrefixEnum;
+import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.EncounterResourceProvider;
@@ -40,6 +39,7 @@ import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResource
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PractitionerResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.CodeableConceptUtil;
+import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.DateUtil;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
 import edu.gatech.chai.omopv5.dba.service.ConceptService;
 import edu.gatech.chai.omopv5.dba.service.DrugExposureService;
@@ -89,6 +89,9 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 	public OmopMedicationRequest(WebApplicationContext context) {
 		super(context, DrugExposure.class, DrugExposureService.class, MedicationRequestResourceProvider.getType());
 		initialize(context);
+		
+		// Get count and put it in the counts.
+		getSize();
 	}
 	
 	public OmopMedicationRequest() {
@@ -101,9 +104,6 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 		conceptService = context.getBean(ConceptService.class);
 		providerService = context.getBean(ProviderService.class);
 		fPersonService = context.getBean(FPersonService.class);
-		
-		// Get count and put it in the counts.
-		getSize();
 	}
 
 	public static OmopMedicationRequest getInstance() {
@@ -400,31 +400,12 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 			}
 			break;
 		case MedicationRequest.SP_AUTHOREDON:
-			DateParam authoredOnDataParam = ((DateParam) value);
-			ParamPrefixEnum apiOperator = authoredOnDataParam.getPrefix();
-			String sqlOperator = null;
-			if (apiOperator.equals(ParamPrefixEnum.GREATERTHAN)) {
-				sqlOperator = ">";
-			} else if (apiOperator.equals(ParamPrefixEnum.GREATERTHAN_OR_EQUALS)) {
-				sqlOperator = ">=";
-			} else if (apiOperator.equals(ParamPrefixEnum.LESSTHAN)) {
-				sqlOperator = "<";
-			} else if (apiOperator.equals(ParamPrefixEnum.LESSTHAN_OR_EQUALS)) {
-				sqlOperator = "<=";
-			} else if (apiOperator.equals(ParamPrefixEnum.NOT_EQUAL)) {
-				sqlOperator = "!=";
-			} else {
-				sqlOperator = "=";
-			}
-			Date authoredOnDate = authoredOnDataParam.getValue();
-			
-			paramWrapper.setParameterType("Date");
-			paramWrapper.setParameters(Arrays.asList("drugExposureStartDate"));
-			paramWrapper.setOperators(Arrays.asList(sqlOperator));
-			paramWrapper.setValues(Arrays.asList(String.valueOf(authoredOnDate.getTime())));
-			paramWrapper.setRelationship("or");
-			mapList.add(paramWrapper);
-			break;
+		DateRangeParam authoredOnDataParam = ((DateRangeParam) value);
+		DateUtil.constructParameterWrapper(authoredOnDataParam, "drugExposureStartDate", paramWrapper, mapList);
+		ParameterWrapper paramWrapper1 = new ParameterWrapper();
+		paramWrapper1.setUpperRelationship("or");
+		DateUtil.constructParameterWrapper(authoredOnDataParam, "drugExposureEndDate", paramWrapper1, mapList);
+	   break;
 //		case MedicationRequest.SP_PATIENT:
 //		case MedicationRequest.SP_SUBJECT:
 //			ReferenceParam patientReference = ((ReferenceParam) value);
@@ -564,7 +545,6 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 			try {
 				throw new FHIRException("Patient must exist.");
 			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} 
 		
@@ -611,8 +591,8 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 					} else {
 						throw new FHIRException("Medication Reference must have the medication in the contained");
 					}
-				}			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
+				}			
+			} catch (FHIRException e) {
 				e.printStackTrace();
 			}
 
@@ -620,18 +600,12 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 			try {
 				medicationCodeableConcept = fhirResource.getMedicationCodeableConcept();
 			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		
 		if (medicationCodeableConcept == null || medicationCodeableConcept.isEmpty()) { 		
-			try {
-				throw new FHIRException("Medication[CodeableConcept or Reference] could not be mapped");
-			} catch (FHIRException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			throw new FHIRException("Medication[CodeableConcept or Reference] could not be mapped");
 		}
 
 		try {
@@ -642,7 +616,6 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 				drugExposure.setDrugConcept(omopConcept);
 			}
 		} catch (FHIRException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -671,7 +644,6 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 					try {
 						throw new FHIRException("Encounter/"+fhirEncounterIdLong+" is not valid.");
 					} catch (FHIRException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
@@ -723,7 +695,6 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 						drugExposure.setDoseUnitSourceValue(doseCode);
 					}
 				} catch (FHIRException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}

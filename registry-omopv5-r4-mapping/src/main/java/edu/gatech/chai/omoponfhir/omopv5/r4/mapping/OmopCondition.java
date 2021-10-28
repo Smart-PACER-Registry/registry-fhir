@@ -46,7 +46,7 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 
 	private static OmopCondition omopCondition = new OmopCondition();
 
-	private ConditionOccurrenceService conditionOccurrenceService;
+	// private ConditionOccurrenceService conditionOccurrenceService;
 	private FPersonService fPersonService;
 	private ProviderService providerService;
 	private ConceptService conceptService;
@@ -56,6 +56,9 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 		super(context, ConditionOccurrence.class, ConditionOccurrenceService.class,
 				ConditionResourceProvider.getType());
 		initialize(context);
+		
+		// Get count and put it in the counts.
+		getSize();
 	}
 
 	public OmopCondition() {
@@ -67,7 +70,7 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 	private void initialize(WebApplicationContext context) {
 		// Get bean for other services that we need for mapping.
 		if (context != null) {
-			conditionOccurrenceService = context.getBean(ConditionOccurrenceService.class);
+			// conditionOccurrenceService = context.getBean(ConditionOccurrenceService.class);
 			fPersonService = context.getBean(FPersonService.class);
 			providerService = context.getBean(ProviderService.class);
 			conceptService = context.getBean(ConceptService.class);
@@ -75,9 +78,6 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 		} else {
 			logger.error("context must be NOT null");
 		}
-		
-		// Get count and put it in the counts.
-		getSize();
 	}
 
 	public static OmopCondition getInstance() {
@@ -99,11 +99,11 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 		// TODO: Need to map the following
 		// ??Condition.abatement.abatementString, but we are using abatementDateTime for
 		// the end date and Abatement[x] has a 0..1 cardinality.
-		String stopReason = conditionOccurrence.getStopReason();
+		// String stopReason = conditionOccurrence.getStopReason();
 		// ??
-		String sourceValue = conditionOccurrence.getConditionSourceValue();
+		// String sourceValue = conditionOccurrence.getConditionSourceValue();
 		// ??
-		Concept sourceConceptId = conditionOccurrence.getConditionSourceConcept();
+		// Concept sourceConceptId = conditionOccurrence.getConditionSourceConcept();
 
 		return condition;
 	}
@@ -136,9 +136,9 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 		// TODO: Do you need to call other services to update links resources.
 
 		if (conditionOccurrence.getId() != null) {
-			retval = conditionOccurrenceService.update(conditionOccurrence).getId();
+			retval = getMyOmopService().update(conditionOccurrence).getId();
 		} else {
-			retval = conditionOccurrenceService.create(conditionOccurrence).getId();
+			retval = getMyOmopService().create(conditionOccurrence).getId();
 			
 			// Create a deduplicate entry
 			createDuplicateEntry(fhirResource.getIdentifier(), "Condition", retval);	
@@ -405,7 +405,6 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 				code = fhirCategoryCode;
 			}
 			
-//			CodeableConcept typeCodeableConcept = retrieveCodeableConcept(typeConceptId);
 			Coding typeCoding = new Coding();
 			typeCoding.setSystem(systemUri);
 			typeCoding.setCode(code);
@@ -450,7 +449,7 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 
 		// check for an existing condition
 		if (omopId != null) {
-			conditionOccurrence = conditionOccurrenceService.findById(omopId);
+			conditionOccurrence = getMyOmopService().findById(omopId);
 		} else {
 			conditionOccurrence = new ConditionOccurrence();
 		}
@@ -464,18 +463,13 @@ public class OmopCondition extends BaseOmopResource<Condition, ConditionOccurren
 				try {
 					throw new FHIRException("Could not get Person class.");
 				} catch (FHIRException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
 			conditionOccurrence.setFPerson(fPerson);
 		} else {
 			// throw an error
-			try {
-				throw new FHIRException("FHIR Resource does not contain a Subject.");
-			} catch (FHIRException e) {
-				e.printStackTrace();
-			}
+			throw new FHIRException("FHIR Resource does not contain a Subject.");
 		}
 
 		// get the Provider

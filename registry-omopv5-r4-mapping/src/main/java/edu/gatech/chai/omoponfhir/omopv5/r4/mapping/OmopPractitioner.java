@@ -56,6 +56,9 @@ public class OmopPractitioner extends BaseOmopResource<Practitioner, Provider, P
 	public OmopPractitioner(WebApplicationContext context) {
 		super(context, Provider.class, ProviderService.class, PractitionerResourceProvider.getType());
 		initialize(context);
+			
+		// Get count and put it in the counts.
+		getSize();
 	}
 	
 	public OmopPractitioner() {
@@ -67,10 +70,6 @@ public class OmopPractitioner extends BaseOmopResource<Practitioner, Provider, P
 		
 		careSiteService = context.getBean(CareSiteService.class);
 		locationService = context.getBean(LocationService.class);
-		
-		// Get count and put it in the counts.
-		getSize();
-
 	}
 	
 	public static OmopPractitioner getInstance() {
@@ -189,7 +188,7 @@ public class OmopPractitioner extends BaseOmopResource<Practitioner, Provider, P
 		if (address == null) return null;
 		
 		List<StringType> addressLines = address.getLine();
-		if (addressLines.size() > 0) {
+		if (!addressLines.isEmpty()) {
 			String line1 = addressLines.get(0).getValue();
 			String line2 = null;
 			if (address.getLine().size() > 1)
@@ -317,11 +316,7 @@ public class OmopPractitioner extends BaseOmopResource<Practitioner, Provider, P
 		if (omopId != null) {
 			omopProvider = getMyOmopService().findById(omopId);
 			if (omopProvider == null) {
-				try {
-					throw new FHIRException(practitioner.getId() + " does not exist");
-				} catch (FHIRException e) {
-					e.printStackTrace();
-				}
+				throw new FHIRException(practitioner.getId() + " does not exist");
 			}
 		} else {
 			omopProvider = new Provider();
@@ -340,7 +335,7 @@ public class OmopPractitioner extends BaseOmopResource<Practitioner, Provider, P
 		//Set address
 		List<Address> addresses = practitioner.getAddress();
 		Location retLocation = null;
-		if (addresses != null && addresses.size() > 0) {
+		if (addresses != null && !addresses.isEmpty()) {
 			Address address = addresses.get(0);
 			retLocation = AddressUtil.searchAndUpdate(locationService, address, null);
 			if (retLocation != null) {
