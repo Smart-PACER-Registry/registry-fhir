@@ -3,6 +3,7 @@ package edu.gatech.chai.omoponfhir.local.task;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,7 +122,7 @@ public class ScheduledTask {
 		for (SSession session : sessions) {
 			if (ScheduledTask.IN_QUERY.equals(session.getStatus())) {
 				// If we are still in query status, call status URL to get FHIR syphilis registry data.
-				String statusURL = session.getStatusUrl() + "?jobid=" + session.getJodId();
+				String statusURL = session.getStatusUrl();
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
 				ResponseEntity<String> response;
 		
@@ -133,43 +134,58 @@ public class ScheduledTask {
 					ssessionLogs.setText("Status Query Failed and Responded with statusCode:" + statusCode.toString());
 					ssessionLogs.setDateTime(new Date());
 					ssessionLogsService.create(ssessionLogs);
+				} else {
+					// Get response body
+					String responseBody = response.getBody();
 
-					continue;
-				}
-
-				// Get response body
-				String responseBody = response.getBody();
-
-				if (responseBody != null && !responseBody.isEmpty()) {
-					// Convert the response body to FHIR Resource
-					IParser parser = StaticValues.myFhirContext.newJsonParser();
-					Bundle responseBundle = parser.parseResource(Bundle.class, responseBody);
-
-					// Save the response bundle to registry db.
-					if (responseBundle != null && !responseBundle.isEmpty()) {
-						List<BundleEntryComponent> entries = responseBundle.getEntry();
-						List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, session);
-						int errorFlag = 0;
-						String errMessage = "";
-						for (BundleEntryComponent responseEntry : responseEntries) {
-							if (!responseEntry.getResponse().getStatus().startsWith("201") 
-								&& !responseEntry.getResponse().getStatus().startsWith("200")) {
-								String jsonResource = StaticValues.serializeIt(responseEntry.getResource());
-								errMessage += "Failed to create/add " + jsonResource;
-								logger.error(errMessage);
-								errorFlag = 1;
-							}
+					if (responseBody != null && !responseBody.isEmpty()) {
+						String resultBundleString = null;
+						try {
+							JsonNode responseJson = mapper.readTree(responseBody);
+							JsonNode resultBundle = responseJson.get("results");
+							resultBundleString = mapper.writeValueAsString(resultBundle);
+						} catch (JsonProcessingException e) {
+							e.printStackTrace();
+							continue;
 						}
 
-						if (errorFlag == 1) {
-							// Error occurred on one of resources.
+						if (resultBundleString != null) {
+							// Convert the response body to FHIR Resource
+							IParser parser = StaticValues.myFhirContext.newJsonParser();
+							Bundle responseBundle = parser.parseResource(Bundle.class, resultBundleString);
+
+							// Save the response bundle to registry db.
+							if (responseBundle != null && !responseBundle.isEmpty()) {
+								List<BundleEntryComponent> entries = responseBundle.getEntry();
+								List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, session);
+								int errorFlag = 0;
+								String errMessage = "";
+								for (BundleEntryComponent responseEntry : responseEntries) {
+									if (!responseEntry.getResponse().getStatus().startsWith("201") 
+										&& !responseEntry.getResponse().getStatus().startsWith("200")) {
+										String jsonResource = StaticValues.serializeIt(responseEntry.getResource());
+										errMessage += "Failed to create/add " + jsonResource;
+										logger.error(errMessage);
+										errorFlag = 1;
+									}
+								}
+
+								if (errorFlag == 1) {
+									// Error occurred on one of resources.
+									ssessionLogs.setSession(session);
+									ssessionLogs.setText(errMessage);
+									ssessionLogs.setDateTime(new Date());
+									ssessionLogsService.create(ssessionLogs);
+								} else {
+									session.setStatus(ScheduledTask.COMPLETE);
+									ssessionService.update(session);
+								}
+							}
+						} else {
 							ssessionLogs.setSession(session);
-							ssessionLogs.setText(errMessage);
+							ssessionLogs.setText("The response for PACER query has no results");
 							ssessionLogs.setDateTime(new Date());
 							ssessionLogsService.create(ssessionLogs);
-						} else {
-							session.setStatus(ScheduledTask.COMPLETE);
-							ssessionService.update(session);
 						}
 					}
 				}
@@ -178,49 +194,60 @@ public class ScheduledTask {
 				JsonNode patientNode = mapper.createObjectNode();
 				ArrayNode patientNodeArray = mapper.createArrayNode();
 				String patientIdentifier = session.getPatientIdentifier();
-				if (patientIdentifier == null) {
-					// This cannot happen as patient identifier is a required field.
-					// BUt, if this ever happens, we write this in session log and return.
-					ssessionLogs.setSession(session);
-					ssessionLogs.setText("session (" + session.getId() + ") without patient identifier");
-					ssessionLogs.setDateTime(new Date());
-					ssessionLogsService.create(ssessionLogs);
-					continue;
-				}
+				if (patientIdentifier != null) {
+					((ObjectNode) patientNode).put("recordId", session.getId());
+					((ObjectNode) patientNode).put("referenceId", patientIdentifier);
+					String patientFullName = session.getFPerson().getNameAsSingleString();
+					if (patientFullName != null) {
+						((ObjectNode) patientNode).put("name", patientFullName);
+					}
 
-				((ObjectNode) patientNode).put("recordId", session.getId());
-				((ObjectNode) patientNode).put("referenceId", patientIdentifier);
-				String patientFullName = session.getFPerson().getNameAsSingleString();
-				if (patientFullName != null) {
-					((ObjectNode) patientNode).put("name", patientFullName);
-				}
+					patientNodeArray.add(patientNode);
 
-				patientNodeArray.add(patientNode);
+					DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+					Date date = new Date();
+					JsonNode requestJson = mapper.createObjectNode();
+					((ObjectNode) requestJson).put("name", "Syphilis_CaseReport_Req_" + dateFormat.format(date));
+					((ObjectNode) requestJson).put("jobType", "ECR");
+					((ObjectNode) requestJson).set("listElements", patientNodeArray);
+			
+					HttpHeaders headers = createHeaders();
+					headers.setContentType(MediaType.APPLICATION_JSON);
+					HttpEntity<JsonNode> entity = new HttpEntity<JsonNode>(requestJson, headers);
 
-				DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-				Date date = new Date();
-				JsonNode requestJson = mapper.createObjectNode();
-				((ObjectNode) requestJson).put("name", "Syphilis_CaseReport_Req_" + dateFormat.format(date));
-				((ObjectNode) requestJson).put("jobType", "ECR");
-				((ObjectNode) requestJson).set("listElements", patientNodeArray);
-		
-				HttpHeaders headers = createHeaders();
-				headers.setContentType(MediaType.APPLICATION_JSON);
-				HttpEntity<JsonNode> entity = new HttpEntity<JsonNode>(requestJson, headers);
+					ResponseEntity<String> response = restTemplate.postForEntity(session.getServerUrl(), entity, String.class);
+					if (response.getStatusCode().equals(HttpStatus.CREATED) || response.getStatusCode().equals(HttpStatus.OK)) {
+						// Get Location
+						Long jobId = 0L;
+						String statusUrl = "";
+						HttpHeaders responseHeaders = response.getHeaders();
+						URI locationUri = responseHeaders.getLocation();
+						if (locationUri != null) {
+							String locationUriPath = locationUri.getPath();
+							if (locationUriPath != null) {
+								if (locationUri.isAbsolute()) {
+									statusUrl = locationUriPath;
+								} else {
+									statusUrl = session.getServerUrl() + locationUriPath;
+								}
 
-				ResponseEntity<String> response = restTemplate.postForEntity(session.getServerUrl(), entity, String.class);
-				if (response.getStatusCode().equals(HttpStatus.CREATED) || response.getStatusCode().equals(HttpStatus.OK)) {
-					// Get response body
-					String responseBody = response.getBody();
-					if (responseBody != null && !responseBody.isEmpty()) {
-						// Parse the response
-					    try {
-							JsonNode responseJson = mapper.readTree(responseBody);
-							JsonNode statusUrlObj = responseJson.get("statusUrl");
-							String statusUrl = statusUrlObj.asText();
+								String[] paths = locationUriPath.split("/");
+								String jobIdString = paths[paths.length-1];
+								jobId = Long.getLong(jobIdString);
+							}
+						}
+
+						if (jobId == 0L) {
+							// We failed to get a JobID.
+							ssessionLogs.setSession(session);
+							ssessionLogs.setText("session (" + session.getId() + ") failed to get jobId");
+							ssessionLogs.setDateTime(new Date());
+							ssessionLogsService.create(ssessionLogs);
+						} else {
 							if (statusUrl != null && !statusUrl.isEmpty()) {
 								// Done. set it to in query
 								session.setStatusUrl(statusUrl);
+								session.setJobId(jobId);
 								session.setStatus(ScheduledTask.IN_QUERY);
 								ssessionService.update(session);
 
@@ -229,20 +256,56 @@ public class ScheduledTask {
 								ssessionLogs.setText("session (" + session.getId() + ") is updated to IN_QUERY");
 								ssessionLogs.setDateTime(new Date());
 								ssessionLogsService.create(ssessionLogs);	
+							} else {
+								ssessionLogs.setSession(session);
+								ssessionLogs.setText("session (" + session.getId() + ") gets incorrect response");
+								ssessionLogs.setDateTime(new Date());
+								ssessionLogsService.create(ssessionLogs);								
 							}
-						} catch (JsonProcessingException e) {
-							e.printStackTrace();
-							ssessionLogs.setSession(session);
-							ssessionLogs.setText("session (" + session.getId() + ") gets incorrect response");
-							ssessionLogs.setDateTime(new Date());
-							ssessionLogsService.create(ssessionLogs);								
 						}
-					}
+
+						// // Get response body
+						// String responseBody = response.getBody();
+						// if (responseBody != null && !responseBody.isEmpty()) {
+						// 	// Parse the response
+						// 	try {
+						// 		JsonNode responseJson = mapper.readTree(responseBody);
+						// 		JsonNode statusUrlObj = responseJson.get("statusUrl");
+						// 		String statusUrl = statusUrlObj.asText();
+						// 		if (statusUrl != null && !statusUrl.isEmpty()) {
+						// 			// Done. set it to in query
+						// 			session.setStatusUrl(statusUrl);
+						// 			session.setJobId(jobId);
+						// 			session.setStatus(ScheduledTask.IN_QUERY);
+						// 			ssessionService.update(session);
+
+						// 			// log this session
+						// 			ssessionLogs.setSession(session);
+						// 			ssessionLogs.setText("session (" + session.getId() + ") is updated to IN_QUERY");
+						// 			ssessionLogs.setDateTime(new Date());
+						// 			ssessionLogsService.create(ssessionLogs);	
+						// 		}
+						// 	} catch (JsonProcessingException e) {
+						// 		e.printStackTrace();
+						// 		ssessionLogs.setSession(session);
+						// 		ssessionLogs.setText("session (" + session.getId() + ") gets incorrect response");
+						// 		ssessionLogs.setDateTime(new Date());
+						// 		ssessionLogsService.create(ssessionLogs);								
+						// 	}
+						// }
+					} else {
+						ssessionLogs.setSession(session);
+						ssessionLogs.setText("session (" + session.getId() + ") error response (" + response.getStatusCode().toString() + ")");
+						ssessionLogs.setDateTime(new Date());
+						ssessionLogsService.create(ssessionLogs);								
+					}					
 				} else {
+					// This cannot happen as patient identifier is a required field.
+					// BUt, if this ever happens, we write this in session log and return.
 					ssessionLogs.setSession(session);
-					ssessionLogs.setText("session (" + session.getId() + ") error response (" + response.getStatusCode().toString() + ")");
+					ssessionLogs.setText("session (" + session.getId() + ") without patient identifier");
 					ssessionLogs.setDateTime(new Date());
-					ssessionLogsService.create(ssessionLogs);								
+					ssessionLogsService.create(ssessionLogs);
 				}
 			}
 		}

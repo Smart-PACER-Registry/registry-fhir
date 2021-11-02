@@ -703,11 +703,7 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity> implements ISer
 			if (idObject instanceof String) {
 				fieldValue = "'" + (String) idObject + "'";
 			} else if (idObject instanceof Long) {
-				if (null == idObject || (Long)idObject == 0L) {
-					fieldValue = "null";
-				} else {
-					fieldValue = idObject.toString();
-				}
+				fieldValue = idObject.toString();
 			} else {
 				logger.error(columnName + " is foreign table. id cannot be null");
 				return null;
@@ -824,50 +820,30 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity> implements ISer
 					// }
 				} else if (nextIdString == null) {
 					// if value is null and not required, we skip this.
-					if (columnAnnotation != null) {
-						if (columnAnnotation.nullable() == true) {
-							continue;
-						}
+					if (columnAnnotation != null && columnAnnotation.nullable()) {
+						continue;
 					}
 
-					if (joinColumnAnnotation != null) {
-						if (joinColumnAnnotation.nullable() == true) {
-							continue;
-						}
+					if (joinColumnAnnotation != null && joinColumnAnnotation.nullable()) {
+						continue;
 					}
 
 					logger.error(columnName + " cannot be null");
 					return null;
 				}
 
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
-				return null;
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
-				return null;
 			} catch (NullPointerException e) {
-				if (columnAnnotation != null) {
-					if (columnAnnotation.nullable() == false) {
-						e.printStackTrace();
-						return null;
-					}
+				if (columnAnnotation != null && !columnAnnotation.nullable()) {
+					e.printStackTrace();
+					return null;
 				}
 
-				if (joinColumnAnnotation != null) {
-					if (joinColumnAnnotation.nullable() == false) {
-						e.printStackTrace();
-						return null;
-					}
+				if (joinColumnAnnotation != null && !joinColumnAnnotation.nullable()) {
+					e.printStackTrace();
+					return null;
 				}
 				continue;
-			} catch (NoSuchMethodException e) {
-				e.printStackTrace();
-				return null;
-			} catch (SecurityException e) {
-				e.printStackTrace();
-				return null;
-			} catch (InvocationTargetException e) {
+			} catch (IllegalArgumentException | IllegalAccessException | NoSuchMethodException | SecurityException | InvocationTargetException e) {
 				e.printStackTrace();
 				return null;
 			}
