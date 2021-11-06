@@ -25,8 +25,8 @@ public class SSessionLogs extends BaseEntity {
 	@JoinColumn(name = "session_id", nullable = false)
 	private SSession session;
 
-    @Column(name = "datetime")
-	private Date datetime;
+    @Column(name = "log_datetime")
+	private Date logDatetime;
 	
     @Column(name = "text")
     private String text;
@@ -51,12 +51,12 @@ public class SSessionLogs extends BaseEntity {
 		this.session = session;
 	}
 
-    public Date getDateTime() {
-		return datetime;
+    public Date getLogDateTime() {
+		return logDatetime;
 	}
 
-	public void setDateTime(Date datetime) {
-		this.datetime = datetime;
+	public void setLogDateTime(Date logDatetime) {
+		this.logDatetime = logDatetime;
 	}	
 
     public String getText() {
@@ -89,9 +89,7 @@ public class SSessionLogs extends BaseEntity {
 					return null;
 				}
 			}
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
+		} catch (NoSuchFieldException | SecurityException e) {
 			e.printStackTrace();
 		}
 
@@ -108,7 +106,7 @@ public class SSessionLogs extends BaseEntity {
 		if (annotation != null) {
 			return annotation.name();
 		}
-		return "f_resource_deduplicate";
+		return "s_session_logs";
 	}
 
     @Override

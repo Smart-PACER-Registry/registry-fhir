@@ -630,23 +630,15 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 
 		// Set VisitOccurrence 
 		Reference encounterReference = fhirResource.getEncounter();
-		if (encounterReference != null && !encounterReference.isEmpty()) {
-			if (EncounterResourceProvider.getType()
-					.equals(encounterReference.getReferenceElement().getResourceType())) {
-				// Get fhirIDLong.
-				Long fhirEncounterIdLong = encounterReference.getReferenceElement().getIdPartAsLong();
-				Long omopEncounterId = IdMapping.getOMOPfromFHIR(fhirEncounterIdLong, EncounterResourceProvider.getType());
-				if (omopEncounterId != null) {
-					VisitOccurrence visitOccurrence = visitOccurrenceService.findById(omopEncounterId);
-					if (visitOccurrence != null)
-						drugExposure.setVisitOccurrence(visitOccurrence);
-				} else {
-					try {
-						throw new FHIRException("Encounter/"+fhirEncounterIdLong+" is not valid.");
-					} catch (FHIRException e) {
-						e.printStackTrace();
-					}
-				}
+		if (encounterReference != null && !encounterReference.isEmpty() && EncounterResourceProvider.getType().equals(encounterReference.getReferenceElement().getResourceType())) {
+			// Get fhirIDLong.
+			Long omopEncounterId = encounterReference.getReferenceElement().getIdPartAsLong();
+			if (omopEncounterId != null) {
+				VisitOccurrence visitOccurrence = visitOccurrenceService.findById(omopEncounterId);
+				if (visitOccurrence != null)
+					drugExposure.setVisitOccurrence(visitOccurrence);
+			} else {
+				logger.warn ("Encounter/"+omopEncounterId+" is not valid.");
 			}
 		}		
 

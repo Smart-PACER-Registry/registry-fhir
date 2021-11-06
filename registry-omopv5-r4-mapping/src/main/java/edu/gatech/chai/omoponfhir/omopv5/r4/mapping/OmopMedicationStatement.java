@@ -637,7 +637,7 @@ public class OmopMedicationStatement extends BaseOmopResource<MedicationStatemen
 				if (newVisitOccurrence != null) {
 					drugExposure.setVisitOccurrence(newVisitOccurrence);
 				} else {
-					throw new FHIRException("Context Reference (Encounter/" + encounterFhirIdLong
+					logger.warn ("Context Reference (Encounter/" + encounterFhirIdLong
 							+ ") couldn't be found in our local database");
 				}
 			}

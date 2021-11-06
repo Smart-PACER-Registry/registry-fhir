@@ -37,6 +37,7 @@ import org.springframework.web.context.WebApplicationContext;
 import edu.gatech.chai.omoponfhir.omopv5.r4.model.USCorePatient;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ConditionResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResourceProvider;
+import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ObservationResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
 import edu.gatech.chai.omopv5.model.entity.SSession;
@@ -190,7 +191,11 @@ public class OmopServerOperations {
 			
 			if (resource.getResourceType() == ResourceType.Observation) {
 				Observation observation = (Observation) resource;
-				updateReference(observation.getSubject());
+				if (observation.getSubject().isEmpty() && session != null) {
+					observation.getSubject().setReferenceElement(new IdType("Patient", session.getFPerson().getId()));
+				} else {
+					updateReference(observation.getSubject());
+				}
 				updateReferences(observation.getFocus());
 
 				Long fhirId = OmopObservation.getInstance().toDbase(observation, null);
@@ -199,7 +204,7 @@ public class OmopServerOperations {
 					newEntry = addResponseEntry("400 Bad Request", null);
 					newEntry.setResource(observation);
 				} else {
-					referenceIds.put(entry.getFullUrl(), ConditionResourceProvider.getType() + "/" + fhirId);
+					referenceIds.put(entry.getFullUrl(), ObservationResourceProvider.getType() + "/" + fhirId);
 					newEntry = addResponseEntry("201 Created", "Observation/" + fhirId);
 				}
 				responseEntries.add(newEntry);

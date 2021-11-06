@@ -279,6 +279,7 @@ public class ParameterWrapper {
 //
 		// paramList has FHIR parameters mapped Omop parameters (or columns).
 		int i = 0;
+		String upperRelationshipOrClauses = "";
 		for (ParameterWrapper param : paramList) {
 			String subWhere = "";
 			i++;
@@ -518,16 +519,36 @@ public class ParameterWrapper {
 
 			if (where != null && !where.isEmpty()) {
 				if (param.getUpperRelationship() != null && param.getUpperRelationship().equalsIgnoreCase("or")) {
-					where = where + " or " + subWhere;
+					if (upperRelationshipOrClauses.isEmpty()) {
+						upperRelationshipOrClauses = "(" + subWhere;
+					} else {
+						upperRelationshipOrClauses += " or " + subWhere;
+					}
 				} else {
+					if (!upperRelationshipOrClauses.isEmpty()) {
+						where = where + upperRelationshipOrClauses + ")";
+						upperRelationshipOrClauses = "";
+					}
 					where = where + " and " + subWhere;
 				}
 			} else {
 				if (param.getUpperRelationship() != null && param.getUpperRelationship().equalsIgnoreCase("or")) {
-					where = subWhere;
+					if (upperRelationshipOrClauses.isEmpty()) {
+						upperRelationshipOrClauses = "(" + subWhere;
+					} else {
+						upperRelationshipOrClauses += " or " + subWhere;
+					}
 				} else {
 					where = subWhere;
 				}
+			}
+		}
+
+		if (!upperRelationshipOrClauses.isEmpty()) {
+			if (where.isEmpty()) {
+				where = upperRelationshipOrClauses + ")";
+			} else {
+				where = where + " and " + upperRelationshipOrClauses + ")";
 			}
 		}
 

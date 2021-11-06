@@ -26,6 +26,8 @@ import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.springframework.web.context.WebApplicationContext;
@@ -48,6 +50,8 @@ import edu.gatech.chai.omopv5.model.entity.VisitOccurrence;
 
 public abstract class BaseOmopResource<v extends Resource, t extends BaseEntity, p extends IService<t>>
 		implements IResourceMapping<v, t> {
+			
+	static final Logger logger = LoggerFactory.getLogger(BaseOmopResource.class);
 
 	protected FhirOmopVocabularyMapImpl fhirOmopVocabularyMap;
 	protected FhirOmopCodeMapImpl fhirOmopCodeMap;
@@ -93,8 +97,8 @@ public abstract class BaseOmopResource<v extends Resource, t extends BaseEntity,
 	}
 
 	public Long removeByFhirId(IdType fhirId) {
-		Long id_long_part = fhirId.getIdPartAsLong();
-		Long myId = IdMapping.getOMOPfromFHIR(id_long_part, getMyFhirResourceType());
+		Long idLongPart = fhirId.getIdPartAsLong();
+		Long myId = IdMapping.getOMOPfromFHIR(idLongPart, getMyFhirResourceType());
 
 		return myOmopService.removeById(myId);
 	}
@@ -393,12 +397,7 @@ public abstract class BaseOmopResource<v extends Resource, t extends BaseEntity,
 					visitOccurrence = visitOccurrenceService.findById(omopVisitOccurrenceId);
 				}
 				if (visitOccurrence == null) {
-					try {
-						throw new FHIRException(
-								"The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
-					} catch (FHIRException e) {
-						e.printStackTrace();
-					}
+					logger.warn ("The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
 				} else {
 					return visitOccurrence;
 				}

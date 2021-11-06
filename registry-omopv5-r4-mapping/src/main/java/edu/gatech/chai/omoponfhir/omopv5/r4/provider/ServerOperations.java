@@ -62,7 +62,7 @@ public class ServerOperations {
 			// Evaluate the first entry, which must be MessageHeader
 //			BundleEntryComponent entry1 = theContent.getEntryFirstRep();
 //			Resource resource = entry1.getResource();
-			if (entries != null && entries.size() > 0 && 
+			if (entries != null && !entries.isEmpty() && 
 					entries.get(0).getResource() != null &&
 					entries.get(0).getResource().getResourceType() == ResourceType.MessageHeader) {
 				messageHeader = (MessageHeader) entries.get(0).getResource();

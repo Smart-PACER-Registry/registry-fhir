@@ -4,16 +4,15 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,6 +30,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
@@ -40,7 +41,6 @@ import ca.uhn.fhir.parser.IParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.opencsv.CSVParser;
 
@@ -68,15 +68,8 @@ public class ScheduledTask {
 	private static final Logger logger = LoggerFactory.getLogger(ScheduledTask.class);
 	ObjectMapper mapper = new ObjectMapper();
 
-	private static final long CONCEPT_MY_SPACE = 2000000000L;
-	private String smartPacerBasicAuth = "client:secret";
+	private String smartPacerBasicAuth = "user:secret";
 	private OmopServerOperations myMapper;
-
-	protected static final String IN_QUERY   = "IN_QUERY";
-	protected static final String COMPLETE   = "COMPLETE";
-	protected static final String ERROR      = "ERROR";
-	protected static final String REPEAT_IN_ = "REPEAT_IN_";
-	protected static final String REQUEST    = "REQUEST";
 
 	@Autowired
 	private ConceptService conceptService;
@@ -96,9 +89,9 @@ public class ScheduledTask {
 	protected FhirOmopVocabularyMapImpl fhirOmopVocabularyMap;
 
 	public ScheduledTask() {
-		conceptIdStart = ScheduledTask.CONCEPT_MY_SPACE;
+		conceptIdStart = StaticValues.CONCEPT_MY_SPACE;
 		fhirOmopVocabularyMap = new FhirOmopVocabularyMapImpl();
-		setSmartPacerBasicAuth("client:secret");
+		setSmartPacerBasicAuth("username:password");
 
 		// We are using the server operations implementation. 
 		WebApplicationContext myAppCtx = ContextLoaderListener.getCurrentWebApplicationContext();
@@ -113,27 +106,51 @@ public class ScheduledTask {
 		this.smartPacerBasicAuth = smartPacerBasicAuth;
 	}
 
+	protected void writeToLog (SSession session, String message) {
+		SSessionLogs ssessionLogs = new SSessionLogs();
+
+		ssessionLogs.setSession(session);
+		ssessionLogs.setText(message);
+		ssessionLogs.setLogDateTime(new Date());
+		ssessionLogsService.create(ssessionLogs);	
+	}
+
+	protected void changeSessionStatus (SSession session, String status) {
+		session.setStatus(status);
+		ssessionService.update(session);
+	}
+
 	@Scheduled(initialDelay = 30000, fixedDelay = 30000)
 	public void runPeriodicQuery() {
 		List<SSession> sessions = ssessionService.searchWithoutParams(0, 0, "id ASC");
-		SSessionLogs ssessionLogs = new SSessionLogs();
 		RestTemplate restTemplate = new RestTemplate();
 
 		for (SSession session : sessions) {
-			if (ScheduledTask.IN_QUERY.equals(session.getStatus())) {
+			if (StaticValues.IN_QUERY.equals(session.getStatus())) {
 				// If we are still in query status, call status URL to get FHIR syphilis registry data.
 				String statusURL = session.getStatusUrl();
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
-				ResponseEntity<String> response;
+				ResponseEntity<String> response = null;
 		
-				response = restTemplate.exchange(statusURL, HttpMethod.GET, reqAuth, String.class);
+				try {
+					response = restTemplate.exchange(statusURL, HttpMethod.GET, reqAuth, String.class);
+				} catch (HttpClientErrorException e) {
+					// this is error like 4xx.
+					writeToLog(session, "session (" + session.getId() + ") STATUS GET FAILED: " + e.getMessage());		
+					e.printStackTrace();
+
+					// If the error is 404, then change the task type to REQUEST.
+					if (HttpStatus.NOT_FOUND == e.getStatusCode()) {
+						writeToLog(session, "session (" + session.getId() + ") STATUS Changing to " + StaticValues.REQUEST);		
+						changeSessionStatus(session, StaticValues.REQUEST);
+					}
+					continue;
+				}
+
 				HttpStatus statusCode = response.getStatusCode();
 				if (!statusCode.is2xxSuccessful()) {
 					logger.debug("Status Query Failed and Responded with statusCode:" + statusCode.toString());
-					ssessionLogs.setSession(session);
-					ssessionLogs.setText("Status Query Failed and Responded with statusCode:" + statusCode.toString());
-					ssessionLogs.setDateTime(new Date());
-					ssessionLogsService.create(ssessionLogs);
+					writeToLog(session, "Status Query Failed and Responded with statusCode:" + statusCode.toString());
 				} else {
 					// Get response body
 					String responseBody = response.getBody();
@@ -145,6 +162,7 @@ public class ScheduledTask {
 							JsonNode resultBundle = responseJson.get("results");
 							resultBundleString = mapper.writeValueAsString(resultBundle);
 						} catch (JsonProcessingException e) {
+							writeToLog(session, "session (" + session.getId() + ") was not successful: " + e.getMessage());
 							e.printStackTrace();
 							continue;
 						}
@@ -172,56 +190,54 @@ public class ScheduledTask {
 
 								if (errorFlag == 1) {
 									// Error occurred on one of resources.
-									ssessionLogs.setSession(session);
-									ssessionLogs.setText(errMessage);
-									ssessionLogs.setDateTime(new Date());
-									ssessionLogsService.create(ssessionLogs);
+									writeToLog(session, errMessage);
 								} else {
-									session.setStatus(ScheduledTask.COMPLETE);
+									session.setStatus(StaticValues.COMPLETE);
 									ssessionService.update(session);
 								}
 							}
 						} else {
-							ssessionLogs.setSession(session);
-							ssessionLogs.setText("The response for PACER query has no results");
-							ssessionLogs.setDateTime(new Date());
-							ssessionLogsService.create(ssessionLogs);
+							writeToLog(session, "The response for PACER query has no results");
 						}
 					}
 				}
-			} else if (ScheduledTask.REQUEST.equals(session.getStatus())) {
+			} else if (StaticValues.REQUEST.equals(session.getStatus())) {
 				// Send a request. This is triggered by a new ELR or NoSuchRequest from PACER server
 				JsonNode patientNode = mapper.createObjectNode();
-				ArrayNode patientNodeArray = mapper.createArrayNode();
 				String patientIdentifier = session.getPatientIdentifier();
 				if (patientIdentifier != null) {
-					((ObjectNode) patientNode).put("recordId", session.getId());
-					((ObjectNode) patientNode).put("referenceId", patientIdentifier);
-					String patientFullName = session.getFPerson().getNameAsSingleString();
-					if (patientFullName != null) {
-						((ObjectNode) patientNode).put("name", patientFullName);
-					}
+					((ObjectNode) patientNode).put("patient_id", patientIdentifier);
 
-					patientNodeArray.add(patientNode);
-
-					DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-					Date date = new Date();
 					JsonNode requestJson = mapper.createObjectNode();
-					((ObjectNode) requestJson).put("name", "Syphilis_CaseReport_Req_" + dateFormat.format(date));
-					((ObjectNode) requestJson).put("jobType", "ECR");
-					((ObjectNode) requestJson).set("listElements", patientNodeArray);
+					((ObjectNode) requestJson).put("jobType", "SyphilisRegistry");
+					((ObjectNode) requestJson).set("params", patientNode);
 			
 					HttpHeaders headers = createHeaders();
 					headers.setContentType(MediaType.APPLICATION_JSON);
 					HttpEntity<JsonNode> entity = new HttpEntity<JsonNode>(requestJson, headers);
 
-					ResponseEntity<String> response = restTemplate.postForEntity(session.getServerUrl(), entity, String.class);
+					ResponseEntity<String> response = null;
+					try {
+						response = restTemplate.postForEntity(session.getServerUrl() + "/Jobs/", entity, String.class);
+						Map<String, String> what = entity.getHeaders().toSingleValueMap();
+						for (Map.Entry<String, String> entry : what.entrySet()) {
+							System.out.println(entry.getKey() + ":" + entry.getValue());
+						}
+
+						System.out.println(entity.getBody().toPrettyString());
+					} catch (RestClientException e) {
+						// log this session
+						writeToLog(session, "session (" + session.getId() + ") REQUEST FAILED: " + e.getMessage());
+						e.printStackTrace();
+						continue;
+					}
 					if (response.getStatusCode().equals(HttpStatus.CREATED) || response.getStatusCode().equals(HttpStatus.OK)) {
 						// Get Location
 						Long jobId = 0L;
 						String statusUrl = "";
 						HttpHeaders responseHeaders = response.getHeaders();
 						URI locationUri = responseHeaders.getLocation();
+
 						if (locationUri != null) {
 							String locationUriPath = locationUri.getPath();
 							if (locationUriPath != null) {
@@ -232,80 +248,35 @@ public class ScheduledTask {
 								}
 
 								String[] paths = locationUriPath.split("/");
-								String jobIdString = paths[paths.length-1];
-								jobId = Long.getLong(jobIdString);
+								String jobIdString = paths[paths.length - 1];
+								jobId = Long.parseLong(jobIdString);
 							}
 						}
 
 						if (jobId == 0L) {
 							// We failed to get a JobID.
-							ssessionLogs.setSession(session);
-							ssessionLogs.setText("session (" + session.getId() + ") failed to get jobId");
-							ssessionLogs.setDateTime(new Date());
-							ssessionLogsService.create(ssessionLogs);
+							writeToLog(session, "session (" + session.getId() + ") failed to get jobId");
 						} else {
 							if (statusUrl != null && !statusUrl.isEmpty()) {
 								// Done. set it to in query
 								session.setStatusUrl(statusUrl);
 								session.setJobId(jobId);
-								session.setStatus(ScheduledTask.IN_QUERY);
+								session.setStatus(StaticValues.IN_QUERY);
 								ssessionService.update(session);
 
 								// log this session
-								ssessionLogs.setSession(session);
-								ssessionLogs.setText("session (" + session.getId() + ") is updated to IN_QUERY");
-								ssessionLogs.setDateTime(new Date());
-								ssessionLogsService.create(ssessionLogs);	
+								writeToLog(session, "session (" + session.getId() + ") is updated to IN_QUERY");
 							} else {
-								ssessionLogs.setSession(session);
-								ssessionLogs.setText("session (" + session.getId() + ") gets incorrect response");
-								ssessionLogs.setDateTime(new Date());
-								ssessionLogsService.create(ssessionLogs);								
+								writeToLog(session, "session (" + session.getId() + ") gets incorrect response");
 							}
 						}
-
-						// // Get response body
-						// String responseBody = response.getBody();
-						// if (responseBody != null && !responseBody.isEmpty()) {
-						// 	// Parse the response
-						// 	try {
-						// 		JsonNode responseJson = mapper.readTree(responseBody);
-						// 		JsonNode statusUrlObj = responseJson.get("statusUrl");
-						// 		String statusUrl = statusUrlObj.asText();
-						// 		if (statusUrl != null && !statusUrl.isEmpty()) {
-						// 			// Done. set it to in query
-						// 			session.setStatusUrl(statusUrl);
-						// 			session.setJobId(jobId);
-						// 			session.setStatus(ScheduledTask.IN_QUERY);
-						// 			ssessionService.update(session);
-
-						// 			// log this session
-						// 			ssessionLogs.setSession(session);
-						// 			ssessionLogs.setText("session (" + session.getId() + ") is updated to IN_QUERY");
-						// 			ssessionLogs.setDateTime(new Date());
-						// 			ssessionLogsService.create(ssessionLogs);	
-						// 		}
-						// 	} catch (JsonProcessingException e) {
-						// 		e.printStackTrace();
-						// 		ssessionLogs.setSession(session);
-						// 		ssessionLogs.setText("session (" + session.getId() + ") gets incorrect response");
-						// 		ssessionLogs.setDateTime(new Date());
-						// 		ssessionLogsService.create(ssessionLogs);								
-						// 	}
-						// }
 					} else {
-						ssessionLogs.setSession(session);
-						ssessionLogs.setText("session (" + session.getId() + ") error response (" + response.getStatusCode().toString() + ")");
-						ssessionLogs.setDateTime(new Date());
-						ssessionLogsService.create(ssessionLogs);								
+						writeToLog(session, "session (" + session.getId() + ") error response (" + response.getStatusCode().toString() + ")");
 					}					
 				} else {
 					// This cannot happen as patient identifier is a required field.
 					// BUt, if this ever happens, we write this in session log and return.
-					ssessionLogs.setSession(session);
-					ssessionLogs.setText("session (" + session.getId() + ") without patient identifier");
-					ssessionLogs.setDateTime(new Date());
-					ssessionLogsService.create(ssessionLogs);
+					writeToLog(session, "session (" + session.getId() + ") without patient identifier");
 				}
 			}
 		}
@@ -596,10 +567,10 @@ public class ScheduledTask {
 
 	private HttpHeaders createHeaders() {
 		HttpHeaders httpHeaders = new HttpHeaders();
-		byte[] encodedAuth = Base64.encodeBase64(smartPacerBasicAuth.getBytes(StandardCharsets.US_ASCII));
+		byte[] encodedAuth = Base64.encodeBase64(smartPacerBasicAuth.getBytes());
 		String authHeader = "Basic " + new String(encodedAuth);
 		httpHeaders.set("Authorization", authHeader);
-		httpHeaders.setAccept(Arrays.asList(new MediaType("application/fhir+json")));
+		httpHeaders.setAccept(Arrays.asList(new MediaType("application", "fhir+json")));
 
 		return httpHeaders;
 	}

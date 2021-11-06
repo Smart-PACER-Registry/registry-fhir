@@ -31,8 +31,8 @@ public interface SSessionLogsService extends IService<SSessionLogs> {
 				} else if (columnInfo.equalsIgnoreCase("session_id")) {
 					SSession session = SSessionService._construct(rs, null, "session");
 					sSessionLogs.setSession(session);
-				} else if (columnInfo.equalsIgnoreCase(alias + "_datetime")) {
-					sSessionLogs.setDateTime(rs.getDate(columnInfo));
+				} else if (columnInfo.equalsIgnoreCase(alias + "_log_datetime")) {
+					sSessionLogs.setLogDateTime(rs.getDate(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_text")) {
 					sSessionLogs.setText(rs.getString(columnInfo));
 				}
@@ -61,11 +61,11 @@ public interface SSessionLogsService extends IService<SSessionLogs> {
 			} else if (columnInfo.equalsIgnoreCase("session_id")) {
 				SSession session = SSessionService._construct(rowResult, null, "session", columns);
 				sSessionLogs.setSession(session);
-			} else if (columnInfo.equalsIgnoreCase(alias + "_datetime")) {
+			} else if (columnInfo.equalsIgnoreCase(alias + "_log_datetime")) {
 				String dateString = rowResult.get(columnInfo).getStringValue();
 				Date date = SqlUtil.string2DateTime(dateString);
 				if (date != null) {
-					sSessionLogs.setDateTime(date);
+					sSessionLogs.setLogDateTime(date);
 				}
 			} else if (columnInfo.equalsIgnoreCase(alias + "_text")) {
 				sSessionLogs.setText(rowResult.get(columnInfo).getStringValue());

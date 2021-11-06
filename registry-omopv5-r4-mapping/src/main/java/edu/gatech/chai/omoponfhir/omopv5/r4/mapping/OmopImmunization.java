@@ -568,7 +568,7 @@ public class OmopImmunization extends BaseOmopResource<Immunization, FImmunizati
 			Long encounterId = encounterReference.getReferenceElement().getIdPartAsLong();
 			VisitOccurrence visitOccurrence = visitOccurrenceService.findById(encounterId);
 			if (visitOccurrence == null) {
-				throw new FHIRException("encounter (" + encounterId + ") does not exist");
+				logger.warn("encounter (" + encounterId + ") does not exist");
 			}
 			
 			drugExposure.setVisitOccurrence(visitOccurrence);

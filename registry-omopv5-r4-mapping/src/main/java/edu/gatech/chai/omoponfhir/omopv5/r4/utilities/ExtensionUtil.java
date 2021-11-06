@@ -42,4 +42,8 @@ public class ExtensionUtil {
 		
 		return count;
 	}
+
+	public static boolean isInUserSpace(Long conceptId) {
+		return (conceptId != null && conceptId > StaticValues.CONCEPT_MY_SPACE);
+	}
 }

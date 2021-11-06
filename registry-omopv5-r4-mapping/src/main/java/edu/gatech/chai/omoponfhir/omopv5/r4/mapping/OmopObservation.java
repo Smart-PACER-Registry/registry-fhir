@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
+import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.rest.api.SortSpec;
 import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.param.TokenParam;
@@ -63,6 +64,7 @@ import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PractitionerResourceProvide
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.CodeableConceptUtil;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.DateUtil;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
+import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.StaticValues;
 import edu.gatech.chai.omopv5.dba.service.ConceptService;
 import edu.gatech.chai.omopv5.dba.service.FObservationViewService;
 import edu.gatech.chai.omopv5.dba.service.FactRelationshipService;
@@ -75,7 +77,6 @@ import edu.gatech.chai.omopv5.model.entity.BaseEntity;
 import edu.gatech.chai.omopv5.model.entity.Concept;
 import edu.gatech.chai.omopv5.model.entity.FObservationView;
 import edu.gatech.chai.omopv5.model.entity.FPerson;
-import edu.gatech.chai.omopv5.model.entity.FResourceDeduplicate;
 import edu.gatech.chai.omopv5.model.entity.FactRelationship;
 import edu.gatech.chai.omopv5.model.entity.Measurement;
 import edu.gatech.chai.omopv5.model.entity.Note;
@@ -83,7 +84,7 @@ import edu.gatech.chai.omopv5.model.entity.VisitOccurrence;
 
 public class OmopObservation extends BaseOmopResource<Observation, FObservationView, FObservationViewService> {
 
-	final static Logger logger = LoggerFactory.getLogger(OmopObservation.class);
+	static final Logger logger = LoggerFactory.getLogger(OmopObservation.class);
 	private static OmopObservation omopObservation = new OmopObservation();
 
 	public static final long SYSTOLIC_CONCEPT_ID = 3004249L;
@@ -711,8 +712,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 					visitOccurrence = visitOccurrenceService.findById(omopVisitOccurrenceId);
 				}
 				if (visitOccurrence == null) {
-					throw new FHIRException(
-							"The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
+					logger.warn("The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
 				} else {
 					if (systolicMeasurement != null) {
 						systolicMeasurement.setVisitOccurrence(visitOccurrence);
@@ -1159,6 +1159,17 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			} else {
 				observation.setValueAsConcept(concept);
 			}
+		} else if (valueType instanceof StringType) {
+			String valueString = ((StringType)valueType).asStringValue();
+			String[] valueStringData = valueString.split("\\^");
+			if (valueStringData.length > 1) {
+				String omopVocId = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(valueStringData[0]);
+				if (!"None".equals(omopVocId)) {
+					valueString = valueString.replace(valueStringData[0], omopVocId);
+				}
+			}
+
+			observation.setValueAsString(valueString);
 		}
 
 		if (fhirResource.getEffective() instanceof DateTimeType) {
@@ -1188,8 +1199,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 					visitOccurrence = visitOccurrenceService.findById(omopVisitOccurrenceId);
 				}
 				if (visitOccurrence == null) {
-					throw new FHIRException(
-							"The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
+					logger.warn("The Encounter (" + contextReference.getReference() + ") context couldn't be found.");
 				} else {
 					observation.setVisitOccurrence(visitOccurrence);
 				}
@@ -1285,7 +1295,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 
 	public void validation(Observation fhirResource, IdType fhirId) throws FHIRException {
 		Reference subjectReference = fhirResource.getSubject();
-		if (subjectReference == null) {
+		if (subjectReference == null || subjectReference.isEmpty()) {
 			throw new FHIRException("We requres subject to contain a Patient");
 		}
 		if (subjectReference.hasReferenceElement()) {
@@ -1327,6 +1337,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 		// get focus and note text properly handled. 
 		boolean isSurvey = false;
 		Long typeConceptId = 0L;
+		
 		List<CodeableConcept> categories = fhirResource.getCategory();
 		for (CodeableConcept category : categories) {
 			List<Coding> codings = category.getCoding();
@@ -1411,7 +1422,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			domainConceptId = 21L;
 		} else {
 			observation = (edu.gatech.chai.omopv5.model.entity.Observation) entityMap.get("entity");
-			if (isSurvey) {
+			if (isSurvey || ExtensionUtil.isInUserSpace(observation.getObservationConcept().getId())) {
 				observation.setObservationSourceValue(commentText);
 			}
 
@@ -1423,7 +1434,9 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 				retId = observationService.create(observation).getId();
 
 				// Create a deduplicate entry
-				createDuplicateEntry(fhirResource.getIdentifier(), "Observation", retId);
+				if (retId != null && retId != 0L) {
+					createDuplicateEntry(fhirResource.getIdentifier(), "Observation", retId);
+				}
 			}
 
 			date = observation.getObservationDate();
@@ -1469,15 +1482,13 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 		List<Reference> focusReferences = fhirResource.getFocus();
 		for (Reference focusReference : focusReferences) {
 			IIdType referenceElement = focusReference.getReferenceElement();
-			if (referenceElement.getResourceType().equals(MedicationStatementResourceProvider.getType())) {
-				logger.debug("Target Focus Reference (" + focusReference.getReference() + "): " + referenceElement.getIdPart() + " " + referenceElement.getIdPartAsLong());
-				createFactRelationship(domainConceptId, retId, focusReference, 44818759L);
-			}
+			logger.debug("Target Focus Reference (" + focusReference.getReference() + "): " + referenceElement.getIdPart() + " " + referenceElement.getIdPartAsLong());
+			createFactRelationship(domainConceptId, retId, focusReference, 44818759L);
 		}
 
 		// Check comments. If exists, put them in note table. And create relationship
 		// entry.
-		if (commentText != null && !commentText.isEmpty() && !isSurvey) {
+		if (commentText != null && !commentText.isEmpty() && !isSurvey && !ExtensionUtil.isInUserSpace(observation.getObservationConcept().getId())) {
 			createFactRelationship(date, fPerson, commentText, domainConceptId, 26L, 44818721L, retId, null);
 		}
 
@@ -1532,12 +1543,20 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 				methodNote.setFPerson(noteFPerson);
 				methodNote.setNoteText(noteText);
 				methodNote.setNoteTypeConcept(new Concept(44814645L));
+				methodNote.setNoteClassConcept(new Concept(32721L)); // LOINC Method
+				methodNote.setEncodingConcept(new Concept(0L));
+				methodNote.setLanguageConcept(new Concept(0L));
 
 				note = noteService.create(methodNote);
 			} else {
 				return;
 			}
-			factRelationship.setFactId2(note.getId());
+
+			if (note != null) {
+				factRelationship.setFactId2(note.getId());
+			} else {
+				return;
+			}
 		} else {
 			// This is relationship to concept. Thus, we don't need to create entry for
 			// concept.
@@ -1554,7 +1573,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 
 		factRelationship.setDomainConceptId1(domainConceptId1);
 		factRelationship.setFactId1(factId1);
-			factRelationship.setDomainConceptId2(domainConceptId2);
+		factRelationship.setDomainConceptId2(domainConceptId2);
 		factRelationship.setRelationshipConcept(new Concept(relationshipId));
 		factRelationshipService.create(factRelationship);
 	}

@@ -374,7 +374,7 @@ public class OmopDocumentReference extends BaseOmopResource<DocumentReference, N
 				if (visitOccurrence != null) {
 					note.setVisitOccurrence(visitOccurrence);
 				} else {
-					ThrowFHIRExceptions.unprocessableEntityException("context.encounter does not exist");
+					logger.warn ("context.encounter does not exist");
 				}
 			}
 		}
