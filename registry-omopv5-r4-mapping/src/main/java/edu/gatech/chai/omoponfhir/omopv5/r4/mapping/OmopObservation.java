@@ -1492,8 +1492,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			createFactRelationship(date, fPerson, commentText, domainConceptId, 26L, 44818721L, retId, null);
 		}
 
-		Long retFhirId = IdMapping.getFHIRfromOMOP(retId, ObservationResourceProvider.getType());
-		return retFhirId;
+		return retId;
 	}
 
 	private void createFactRelationship(Date noteDate, FPerson noteFPerson, String noteText, Long domainConceptId1,
