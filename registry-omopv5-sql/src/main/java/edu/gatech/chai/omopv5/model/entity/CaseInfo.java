@@ -21,22 +21,22 @@ import java.util.Date;
 import java.util.List;
 
 import edu.gatech.chai.omopv5.model.entity.custom.Column;
-import edu.gatech.chai.omopv5.model.entity.custom.GeneratedValue;
-import edu.gatech.chai.omopv5.model.entity.custom.GenerationType;
 import edu.gatech.chai.omopv5.model.entity.custom.Id;
 import edu.gatech.chai.omopv5.model.entity.custom.JoinColumn;
 import edu.gatech.chai.omopv5.model.entity.custom.Table;
 
 /** 
- * This class maintains session information for Syphilis registry.
+ * This class maintains case information for Syphilis registry.
  * @author Myung Choi
  */
-@Table(name="s_session")
-public class SSession extends BaseEntity {
+@Table(name="case_info")
+public class CaseInfo extends BaseEntity {
 	@Id
-	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="ssession_seq_gen")
-	@Column(name = "session_id")
+	@Column(name = "case_info_id")
 	private Long id;
+
+	@Column(name="patient_identifier")
+	private String patientIdentifier;
 
 	@JoinColumn(name = "person_id", table="f_person:fPerson,person:person", nullable = false)
 	private FPerson fPerson;
@@ -53,13 +53,13 @@ public class SSession extends BaseEntity {
 	@Column(name="server_url")
 	private String serverUrl;
 
-	@Column(name="patient_identifier")
-	private String patientIdentifier;
+	@Column(name="trigger_at")
+	private Date triggerAt;
 
 	@Column(name="last_updated")
 	private Date lastUpdated;
 	
-	public SSession() {
+	public CaseInfo() {
 		super();
 	}
 
@@ -69,6 +69,14 @@ public class SSession extends BaseEntity {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	public String getPatientIdentifier() {
+		return patientIdentifier;
+	}
+
+	public void setPatientIdentifier(String patientIdentifier) {
+		this.patientIdentifier = patientIdentifier;
 	}
 
 	public FPerson getFPerson() {
@@ -111,12 +119,12 @@ public class SSession extends BaseEntity {
 		this.serverUrl = serverUrl;
 	}
 
-	public String getPatientIdentifier() {
-		return patientIdentifier;
+	public Date getTriggerAt() {
+		return triggerAt;
 	}
 
-	public void setPatientIdentifier(String patientIdentifier) {
-		this.patientIdentifier = patientIdentifier;
+	public void setTriggerAt(Date triggerAt) {
+		this.triggerAt = triggerAt;
 	}
 
 	public Date getLastUpdated() {
@@ -129,30 +137,28 @@ public class SSession extends BaseEntity {
 
 	@Override
 	public String getColumnName(String columnVariable) {
-		return SSession._getColumnName(columnVariable);
+		return CaseInfo._getColumnName(columnVariable);
 	}
 
     public static String _getColumnName(String columnVariable) {
 
 		try {
-			Field field = SSession.class.getDeclaredField(columnVariable);
+			Field field = CaseInfo.class.getDeclaredField(columnVariable);
 			if (field != null) {
 				Column annotation = field.getDeclaredAnnotation(Column.class);
 				if (annotation != null) {
-					return SSession._getTableName() + "." + annotation.name();
+					return CaseInfo._getTableName() + "." + annotation.name();
 				} else {
 					JoinColumn joinAnnotation = field.getDeclaredAnnotation(JoinColumn.class);
 					if (joinAnnotation != null) {
-						return SSession._getTableName() + "." + joinAnnotation.name();
+						return CaseInfo._getTableName() + "." + joinAnnotation.name();
 					}
 
 					System.out.println("ERROR: annotation is null for field=" + field.toString());
 					return null;
 				}
 			}
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
+		} catch (NoSuchFieldException | SecurityException e) {
 			e.printStackTrace();
 		}
 
@@ -161,20 +167,20 @@ public class SSession extends BaseEntity {
 
 	@Override
     public String getTableName() {
-		return SSession._getTableName();
+		return CaseInfo._getTableName();
     }
 
     public static String _getTableName() {
-		Table annotation = SSession.class.getDeclaredAnnotation(Table.class);
+		Table annotation = CaseInfo.class.getDeclaredAnnotation(Table.class);
 		if (annotation != null) {
 			return annotation.name();
 		}
-		return "s_session";
+		return "case";
 	}
 
     @Override
     public String getForeignTableName(String foreignVariable) {
-		return SSession._getForeignTableName(foreignVariable);
+		return CaseInfo._getForeignTableName(foreignVariable);
     }
 
 	public static String _getForeignTableName(String foreignVariable) {
@@ -186,10 +192,10 @@ public class SSession extends BaseEntity {
     
     @Override
     public String getSqlSelectTableStatement(List<String> parameterList, List<String> valueList) {
-		return SSession._getSqlTableStatement(parameterList, valueList);
+		return CaseInfo._getSqlTableStatement(parameterList, valueList);
     }
 
     public static String _getSqlTableStatement(List<String> parameterList, List<String> valueList) {
-		return "select * from s_session ";
+		return "select * from case ";
 	}
 }

@@ -40,7 +40,7 @@ import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResource
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ObservationResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.utilities.ExtensionUtil;
-import edu.gatech.chai.omopv5.model.entity.SSession;
+import edu.gatech.chai.omopv5.model.entity.CaseInfo;
 
 public class OmopServerOperations {
 	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OmopServerOperations.class);
@@ -106,7 +106,7 @@ public class OmopServerOperations {
 		return createEntries(entries, null);
 	}
 
-	public List<BundleEntryComponent> createEntries(List<BundleEntryComponent> entries, SSession session) throws FHIRException {
+	public List<BundleEntryComponent> createEntries(List<BundleEntryComponent> entries, CaseInfo caseInfo) throws FHIRException {
 		List<BundleEntryComponent> responseEntries = new ArrayList<BundleEntryComponent>();
 		// Map<String, Long> patientMap = new HashMap<String, Long>();
 
@@ -117,11 +117,11 @@ public class OmopServerOperations {
 				Long fhirId;
 				BundleEntryComponent newEntry;
 				USCorePatient patient = ExtensionUtil.usCorePatientFromResource(resource);
-				if (session == null) {
+				if (caseInfo == null) {
 					fhirId = OmopPatient.getInstance().toDbase(patient, null);
 					newEntry = addResponseEntry("201 Created", "Patient/" + fhirId);
 				} else {
-					IdType fhirIdtype = new IdType(PatientResourceProvider.getType(), session.getFPerson().getId());
+					IdType fhirIdtype = new IdType(PatientResourceProvider.getType(), caseInfo.getFPerson().getId());
 
 					// We have session ID. We should have Person already in the OMOP. So, we update it.
 					fhirId = OmopPatient.getInstance().toDbase(patient, fhirIdtype);
@@ -191,8 +191,8 @@ public class OmopServerOperations {
 			
 			if (resource.getResourceType() == ResourceType.Observation) {
 				Observation observation = (Observation) resource;
-				if (observation.getSubject().isEmpty() && session != null) {
-					observation.getSubject().setReferenceElement(new IdType("Patient", session.getFPerson().getId()));
+				if (observation.getSubject().isEmpty() && caseInfo != null) {
+					observation.getSubject().setReferenceElement(new IdType("Patient", caseInfo.getFPerson().getId()));
 				} else {
 					updateReference(observation.getSubject());
 				}

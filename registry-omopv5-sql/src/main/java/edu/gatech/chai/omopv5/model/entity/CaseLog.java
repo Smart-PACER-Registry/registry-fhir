@@ -5,25 +5,22 @@ import java.util.Date;
 import java.util.List;
 
 import edu.gatech.chai.omopv5.model.entity.custom.Column;
-import edu.gatech.chai.omopv5.model.entity.custom.GeneratedValue;
-import edu.gatech.chai.omopv5.model.entity.custom.GenerationType;
 import edu.gatech.chai.omopv5.model.entity.custom.Id;
 import edu.gatech.chai.omopv5.model.entity.custom.JoinColumn;
 import edu.gatech.chai.omopv5.model.entity.custom.Table;
 
 /** 
- * This class maintains session information for Syphilis registry.
+ * This class maintains case information for Syphilis registry.
  * @author Myung Choi
  */
-@Table(name="s_session_logs")
-public class SSessionLogs extends BaseEntity {
+@Table(name="case_log")
+public class CaseLog extends BaseEntity {
     @Id
-	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="ssessionlogs_logs_seq_gen")
-	@Column(name = "session_log_id")
+	@Column(name = "case_log_id")
 	private Long id;
 
-	@JoinColumn(name = "session_id", nullable = false)
-	private SSession session;
+	@JoinColumn(name = "case_info_id", nullable = false)
+	private CaseInfo caseInfo;
 
     @Column(name = "log_datetime")
 	private Date logDatetime;
@@ -31,7 +28,7 @@ public class SSessionLogs extends BaseEntity {
     @Column(name = "text")
     private String text;
 
-    public SSessionLogs() {
+    public CaseLog() {
 		super();
 	}
 
@@ -43,12 +40,12 @@ public class SSessionLogs extends BaseEntity {
 		this.id = id;
 	}
 
-	public SSession getSession() {
-		return session;
+	public CaseInfo getCaseInfo() {
+		return caseInfo;
 	}
 
-	public void setSession(SSession session) {
-		this.session = session;
+	public void setCaseInfo(CaseInfo caseInfo) {
+		this.caseInfo = caseInfo;
 	}
 
     public Date getLogDateTime() {
@@ -69,20 +66,20 @@ public class SSessionLogs extends BaseEntity {
 
 	@Override
 	public String getColumnName(String columnVariable) {
-		return SSessionLogs._getColumnName(columnVariable);
+		return CaseLog._getColumnName(columnVariable);
 	}
 
     public static String _getColumnName(String columnVariable) {
 		try {
-			Field field = SSessionLogs.class.getDeclaredField(columnVariable);
+			Field field = CaseLog.class.getDeclaredField(columnVariable);
 			if (field != null) {
 				Column annotation = field.getDeclaredAnnotation(Column.class);
 				if (annotation != null) {
-					return SSessionLogs._getTableName() + "." + annotation.name();
+					return CaseLog._getTableName() + "." + annotation.name();
 				} else {
 					JoinColumn joinAnnotation = field.getDeclaredAnnotation(JoinColumn.class);
 					if (joinAnnotation != null) {
-						return SSessionLogs._getTableName() + "." + joinAnnotation.name();
+						return CaseLog._getTableName() + "." + joinAnnotation.name();
 					}
 
 					System.out.println("ERROR: annotation is null for field=" + field.toString());
@@ -98,35 +95,35 @@ public class SSessionLogs extends BaseEntity {
 
 	@Override
     public String getTableName() {
-		return SSessionLogs._getTableName();
+		return CaseLog._getTableName();
     }
 
     public static String _getTableName() {
-		Table annotation = SSessionLogs.class.getDeclaredAnnotation(Table.class);
+		Table annotation = CaseLog.class.getDeclaredAnnotation(Table.class);
 		if (annotation != null) {
 			return annotation.name();
 		}
-		return "s_session_logs";
+		return "case_log";
 	}
 
     @Override
     public String getForeignTableName(String foreignVariable) {
-		return SSessionLogs._getForeignTableName(foreignVariable);
+		return CaseLog._getForeignTableName(foreignVariable);
     }
 
 	public static String _getForeignTableName(String foreignVariable) {
-		if ("session".equals(foreignVariable))
-			return SSession._getTableName();
+		if ("caseInfo".equals(foreignVariable))
+			return CaseInfo._getTableName();
 
 		return null;
 	}
     
     @Override
     public String getSqlSelectTableStatement(List<String> parameterList, List<String> valueList) {
-		return SSessionLogs._getSqlTableStatement(parameterList, valueList);
+		return CaseLog._getSqlTableStatement(parameterList, valueList);
     }
 
     public static String _getSqlTableStatement(List<String> parameterList, List<String> valueList) {
-		return "select * from s_session_logs ";
+		return "select * from case_log ";
 	}
 }

@@ -10,7 +10,6 @@ import com.google.cloud.bigquery.FieldValueList;
 import edu.gatech.chai.omopv5.model.entity.ConceptRelationship;
 import edu.gatech.chai.omopv5.model.entity.ConceptRelationshipPK;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class ConceptRelationshipServiceImp.
  */
@@ -42,7 +41,6 @@ public class ConceptRelationshipServiceImp extends BaseEntityServiceImp<ConceptR
 
 	@Override
 	public ConceptRelationshipPK findById(Long id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

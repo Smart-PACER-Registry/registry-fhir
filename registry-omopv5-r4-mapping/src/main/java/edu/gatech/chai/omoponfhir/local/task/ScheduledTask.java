@@ -52,15 +52,15 @@ import edu.gatech.chai.omopv5.dba.service.ConceptRelationshipService;
 import edu.gatech.chai.omopv5.dba.service.ConceptService;
 import edu.gatech.chai.omopv5.dba.service.ParameterWrapper;
 import edu.gatech.chai.omopv5.dba.service.RelationshipService;
-import edu.gatech.chai.omopv5.dba.service.SSessionLogsService;
-import edu.gatech.chai.omopv5.dba.service.SSessionService;
+import edu.gatech.chai.omopv5.dba.service.CaseLogService;
+import edu.gatech.chai.omopv5.dba.service.CaseInfoService;
 import edu.gatech.chai.omopv5.dba.service.VocabularyService;
 import edu.gatech.chai.omopv5.model.entity.Concept;
 import edu.gatech.chai.omopv5.model.entity.ConceptRelationship;
 import edu.gatech.chai.omopv5.model.entity.ConceptRelationshipPK;
 import edu.gatech.chai.omopv5.model.entity.Relationship;
-import edu.gatech.chai.omopv5.model.entity.SSession;
-import edu.gatech.chai.omopv5.model.entity.SSessionLogs;
+import edu.gatech.chai.omopv5.model.entity.CaseInfo;
+import edu.gatech.chai.omopv5.model.entity.CaseLog;
 import edu.gatech.chai.omopv5.model.entity.Vocabulary;
 
 @Component
@@ -76,9 +76,9 @@ public class ScheduledTask {
 	@Autowired
 	private ConceptRelationshipService conceptRelationshipService;
 	@Autowired
-	private SSessionService ssessionService;
+	private CaseInfoService caseInfoService;
 	@Autowired
-	private SSessionLogsService ssessionLogsService;
+	private CaseLogService caseLogService;
 	@Autowired
 	private RelationshipService relationshipService;
 	@Autowired
@@ -106,29 +106,29 @@ public class ScheduledTask {
 		this.smartPacerBasicAuth = smartPacerBasicAuth;
 	}
 
-	protected void writeToLog (SSession session, String message) {
-		SSessionLogs ssessionLogs = new SSessionLogs();
+	protected void writeToLog (CaseInfo caseInfo, String message) {
+		CaseLog caseLog = new CaseLog();
 
-		ssessionLogs.setSession(session);
-		ssessionLogs.setText(message);
-		ssessionLogs.setLogDateTime(new Date());
-		ssessionLogsService.create(ssessionLogs);	
+		caseLog.setCaseInfo(caseInfo);
+		caseLog.setText(message);
+		caseLog.setLogDateTime(new Date());
+		caseLogService.create(caseLog);	
 	}
 
-	protected void changeSessionStatus (SSession session, String status) {
-		session.setStatus(status);
-		ssessionService.update(session);
+	protected void changeCaseInfoStatus (CaseInfo caseInfo, String status) {
+		caseInfo.setStatus(status);
+		caseInfoService.update(caseInfo);
 	}
 
 	@Scheduled(initialDelay = 30000, fixedDelay = 30000)
 	public void runPeriodicQuery() {
-		List<SSession> sessions = ssessionService.searchWithoutParams(0, 0, "id ASC");
+		List<CaseInfo> caseInfos = caseInfoService.searchWithoutParams(0, 0, "id ASC");
 		RestTemplate restTemplate = new RestTemplate();
 
-		for (SSession session : sessions) {
-			if (StaticValues.IN_QUERY.equals(session.getStatus())) {
+		for (CaseInfo caseInfo : caseInfos) {
+			if (StaticValues.IN_QUERY.equals(caseInfo.getStatus())) {
 				// If we are still in query status, call status URL to get FHIR syphilis registry data.
-				String statusURL = session.getStatusUrl();
+				String statusURL = caseInfo.getStatusUrl();
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
 				ResponseEntity<String> response = null;
 		
@@ -136,13 +136,13 @@ public class ScheduledTask {
 					response = restTemplate.exchange(statusURL, HttpMethod.GET, reqAuth, String.class);
 				} catch (HttpClientErrorException e) {
 					// this is error like 4xx.
-					writeToLog(session, "session (" + session.getId() + ") STATUS GET FAILED: " + e.getMessage());		
+					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getMessage());		
 					e.printStackTrace();
 
 					// If the error is 404, then change the task type to REQUEST.
 					if (HttpStatus.NOT_FOUND == e.getStatusCode()) {
-						writeToLog(session, "session (" + session.getId() + ") STATUS Changing to " + StaticValues.REQUEST);		
-						changeSessionStatus(session, StaticValues.REQUEST);
+						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS Changing to " + StaticValues.REQUEST);		
+						changeCaseInfoStatus(caseInfo, StaticValues.REQUEST);
 					}
 					continue;
 				}
@@ -150,7 +150,7 @@ public class ScheduledTask {
 				HttpStatus statusCode = response.getStatusCode();
 				if (!statusCode.is2xxSuccessful()) {
 					logger.debug("Status Query Failed and Responded with statusCode:" + statusCode.toString());
-					writeToLog(session, "Status Query Failed and Responded with statusCode:" + statusCode.toString());
+					writeToLog(caseInfo, "Status Query Failed and Responded with statusCode:" + statusCode.toString());
 				} else {
 					// Get response body
 					String responseBody = response.getBody();
@@ -162,7 +162,7 @@ public class ScheduledTask {
 							JsonNode resultBundle = responseJson.get("results");
 							resultBundleString = mapper.writeValueAsString(resultBundle);
 						} catch (JsonProcessingException e) {
-							writeToLog(session, "session (" + session.getId() + ") was not successful: " + e.getMessage());
+							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") was not successful: " + e.getMessage());
 							e.printStackTrace();
 							continue;
 						}
@@ -175,7 +175,7 @@ public class ScheduledTask {
 							// Save the response bundle to registry db.
 							if (responseBundle != null && !responseBundle.isEmpty()) {
 								List<BundleEntryComponent> entries = responseBundle.getEntry();
-								List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, session);
+								List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, caseInfo);
 								int errorFlag = 0;
 								String errMessage = "";
 								for (BundleEntryComponent responseEntry : responseEntries) {
@@ -190,21 +190,22 @@ public class ScheduledTask {
 
 								if (errorFlag == 1) {
 									// Error occurred on one of resources.
-									writeToLog(session, errMessage);
+									writeToLog(caseInfo, errMessage);
 								} else {
-									session.setStatus(StaticValues.COMPLETE);
-									ssessionService.update(session);
+									caseInfo.setStatus(StaticValues.COMPLETE);
+									caseInfoService.update(caseInfo);
+									writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
 								}
 							}
 						} else {
-							writeToLog(session, "The response for PACER query has no results");
+							writeToLog(caseInfo, "The response for PACER query has no results");
 						}
 					}
 				}
-			} else if (StaticValues.REQUEST.equals(session.getStatus())) {
+			} else if (StaticValues.REQUEST.equals(caseInfo.getStatus())) {
 				// Send a request. This is triggered by a new ELR or NoSuchRequest from PACER server
 				JsonNode patientNode = mapper.createObjectNode();
-				String patientIdentifier = session.getPatientIdentifier();
+				String patientIdentifier = caseInfo.getPatientIdentifier();
 				if (patientIdentifier != null) {
 					((ObjectNode) patientNode).put("patient_id", patientIdentifier);
 
@@ -218,16 +219,16 @@ public class ScheduledTask {
 
 					ResponseEntity<String> response = null;
 					try {
-						response = restTemplate.postForEntity(session.getServerUrl() + "/Jobs/", entity, String.class);
+						response = restTemplate.postForEntity(caseInfo.getServerUrl() + "/Jobs/", entity, String.class);
 						Map<String, String> what = entity.getHeaders().toSingleValueMap();
 						for (Map.Entry<String, String> entry : what.entrySet()) {
-							System.out.println(entry.getKey() + ":" + entry.getValue());
+							logger.debug(entry.getKey() + ":" + entry.getValue());
 						}
 
-						System.out.println(entity.getBody().toPrettyString());
+						logger.debug(entity.getBody().toPrettyString());
 					} catch (RestClientException e) {
 						// log this session
-						writeToLog(session, "session (" + session.getId() + ") REQUEST FAILED: " + e.getMessage());
+						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") REQUEST FAILED: " + e.getMessage());
 						e.printStackTrace();
 						continue;
 					}
@@ -244,7 +245,7 @@ public class ScheduledTask {
 								if (locationUri.isAbsolute()) {
 									statusUrl = locationUriPath;
 								} else {
-									statusUrl = session.getServerUrl() + locationUriPath;
+									statusUrl = caseInfo.getServerUrl() + locationUriPath;
 								}
 
 								String[] paths = locationUriPath.split("/");
@@ -255,28 +256,28 @@ public class ScheduledTask {
 
 						if (jobId == 0L) {
 							// We failed to get a JobID.
-							writeToLog(session, "session (" + session.getId() + ") failed to get jobId");
+							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") failed to get jobId");
 						} else {
 							if (statusUrl != null && !statusUrl.isEmpty()) {
 								// Done. set it to in query
-								session.setStatusUrl(statusUrl);
-								session.setJobId(jobId);
-								session.setStatus(StaticValues.IN_QUERY);
-								ssessionService.update(session);
+								caseInfo.setStatusUrl(statusUrl);
+								caseInfo.setJobId(jobId);
+								caseInfo.setStatus(StaticValues.IN_QUERY);
+								caseInfoService.update(caseInfo);
 
 								// log this session
-								writeToLog(session, "session (" + session.getId() + ") is updated to IN_QUERY");
+								writeToLog(caseInfo, "caes info (" + caseInfo.getId() + ") is updated to IN_QUERY");
 							} else {
-								writeToLog(session, "session (" + session.getId() + ") gets incorrect response");
+								writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") gets incorrect response");
 							}
 						}
 					} else {
-						writeToLog(session, "session (" + session.getId() + ") error response (" + response.getStatusCode().toString() + ")");
+						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") error response (" + response.getStatusCode().toString() + ")");
 					}					
 				} else {
 					// This cannot happen as patient identifier is a required field.
 					// BUt, if this ever happens, we write this in session log and return.
-					writeToLog(session, "session (" + session.getId() + ") without patient identifier");
+					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") without patient identifier");
 				}
 			}
 		}

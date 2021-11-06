@@ -26,12 +26,7 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
 
 import edu.gatech.chai.omopv5.model.entity.Concept;
-import edu.gatech.chai.omopv5.model.entity.IBaseEntity;
 
-// TODO: Auto-generated Javadoc
-/**
- * The Class ConceptServiceImp.
- */
 @Service
 public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements ConceptService {
 
@@ -74,13 +69,6 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 				+ " WHERE concept.concept_code = @med_code "
 				+ "AND 'NDC' = concept.vocabulary_id " + "AND c.vocabulary_id = 'RxNorm' "
 				+ "AND c.concept_class_id = 'Ingredient' " + "AND concept.invalid_reason is null";
-			// sql = "select c " + "FROM concept src " + "JOIN concept_relationship cr on src.id = cr.conceptId1 "
-			// 		+ "AND cr.relationship_id = 'Maps to' " + "AND cr.invalid_reason is null "
-			// 		+ "JOIN Concept tar on cr.conceptId2 = tar.id " + "AND tar.standardConcept = 'S' "
-			// 		+ "AND tar.invalidReason is null " + "JOIN ConceptAncestor ca ON ca.ancestorConcept = tar.id "
-			// 		+ "JOIN Concept c ON ca.ancestorConcept = c.id " + "WHERE src.conceptCode = :med_code "
-			// 		+ "AND 'NDC' = src.vocabulary " + "AND c.vocabulary = 'RxNorm' "
-			// 		+ "AND c.conceptClass = 'Ingredient' " + "AND src.invalidReason is null";
 		} else if ("RxNorm".equals(concept.getVocabularyId())) {
 			// when RxNorm.
 			sql = sqlWithoutWhere 
@@ -90,11 +78,6 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 				+ "AND 'RxNorm' = concept.vocabulary_id " + "AND c.vocabulary_id = 'RxNorm' "
 				+ "AND c.concept_class_id = 'Ingredient' " + "AND concept.invalid_reason is null "
 				+ "AND c.invalid_reason is null";
-			// sql = "select c " + "FROM Concept src " + "JOIN ConceptAncestor ca ON ca.descendantConcept = src.id "
-			// 		+ "JOIN Concept c ON ca.ancestorConcept = c.id " + "WHERE src.conceptCode = :med_code "
-			// 		+ "AND 'RxNorm' = src.vocabulary " + "AND c.vocabulary = 'RxNorm' "
-			// 		+ "AND c.conceptClass = 'Ingredient' " + "AND src.invalidReason is null "
-			// 		+ "AND c.invalidReason is null";
 		} else {
 			return concepts;
 		}
@@ -103,19 +86,11 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 		valueList.add("'"+concept.getConceptCode()+"'");
 		sql = renderedSql(sql, parameterList, valueList);
 
-		System.out.println(sql);
-
 		Concept entity;
 		try {
 			if (isBigQuery()) {
 				TableResult result = runBigQuery(sql);
 				List<String> columns = listOfColumns(sql);
-//				System.out.println("++++++++++++++++++++++++++++++++++++++++");
-//				System.out.println(sql);
-//				System.out.println("++++++++++++++++++++++++++++++++++++++++");
-//				for (String column : columns) {
-//					System.out.println(column);
-//				}
 				for (FieldValueList row : result.iterateAll()) {
 					entity = construct(row, null, getSqlTableName(), columns);
 					if (entity != null) {
@@ -127,13 +102,6 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 				if (!myEntities.isEmpty()) {
 					concepts.addAll(myEntities);					
 				}
-
-				// while (rs.next()) {
-				// 	entity = ConceptService._construct(rs, null, "c");
-				// 	if (entity != null) {
-				// 		concepts.add(entity);
-				// 	}
-				// }
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -154,7 +122,6 @@ public class ConceptServiceImp extends BaseEntityServiceImp<Concept> implements 
 
 	@Override
 	public Concept update(Concept entity) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

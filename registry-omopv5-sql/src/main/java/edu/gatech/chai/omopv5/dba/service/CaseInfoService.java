@@ -10,15 +10,16 @@ import com.google.cloud.bigquery.FieldValueList;
 
 import edu.gatech.chai.omopv5.dba.util.SqlUtil;
 import edu.gatech.chai.omopv5.model.entity.FPerson;
-import edu.gatech.chai.omopv5.model.entity.SSession;
+import edu.gatech.chai.omopv5.model.entity.CaseInfo;
 
-public interface SSessionService extends IService<SSession> {
-	public static SSession _construct(ResultSet rs, SSession sSession, String alias) {
-		if (sSession == null)
-            sSession = new SSession();
+public interface CaseInfoService extends IService<CaseInfo> {
+	public static CaseInfo _construct(ResultSet rs, CaseInfo caseInfo, String alias) {
+		if (caseInfo == null) {
+			caseInfo = new CaseInfo();
+		}
 
 		if (alias == null || alias.isEmpty())
-			alias = SSession._getTableName();
+			alias = CaseInfo._getTableName();
 
 		try {
 			ResultSetMetaData metaData = rs.getMetaData();
@@ -26,23 +27,25 @@ public interface SSessionService extends IService<SSession> {
 			for (int i = 1; i <= totalColumnSize; i++) {
 				String columnInfo = metaData.getColumnName(i);
 
-				if (columnInfo.equalsIgnoreCase(alias + "_session_id")) {
-					sSession.setId(rs.getLong(columnInfo));
+				if (columnInfo.equalsIgnoreCase(alias + "_case_info_id")) {
+					caseInfo.setId(rs.getLong(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase("fPerson_person_id")) {
 					FPerson fPerson = FPersonService._construct(rs, null, "fPerson");
-					sSession.setFPerson(fPerson);
+					caseInfo.setFPerson(fPerson);
                 } else if (columnInfo.equalsIgnoreCase(alias + "_job_id")) {
-					sSession.setJobId(rs.getLong(columnInfo));
+					caseInfo.setJobId(rs.getLong(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_status")) {
-					sSession.setStatus(rs.getString(columnInfo));
+					caseInfo.setStatus(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_status_url")) {
-					sSession.setStatusUrl(rs.getString(columnInfo));
+					caseInfo.setStatusUrl(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_server_url")) {
-					sSession.setServerUrl(rs.getString(columnInfo));
+					caseInfo.setServerUrl(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_patient_identifier")) {
-					sSession.setPatientIdentifier(rs.getString(columnInfo));
+					caseInfo.setPatientIdentifier(rs.getString(columnInfo));
+				} else if (columnInfo.equalsIgnoreCase(alias + "_trigger_at")) {
+					caseInfo.setTriggerAt(rs.getDate(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_last_updated")) {
-					sSession.setLastUpdated(rs.getDate(columnInfo));
+					caseInfo.setLastUpdated(rs.getDate(columnInfo));
 				}
 			}
 		} catch (SQLException e) {
@@ -50,44 +53,49 @@ public interface SSessionService extends IService<SSession> {
 			return null;
 		}
 
-		return sSession;
+		return caseInfo;
 	}
 
-	public static SSession _construct(FieldValueList rowResult, SSession sSession,
+	public static CaseInfo _construct(FieldValueList rowResult, CaseInfo caseInfo,
 			String alias, List<String> columns) {
-		if (sSession == null)
-            sSession = new SSession();
+		if (caseInfo == null) {
+			caseInfo = new CaseInfo();
+		}
 
 		if (alias == null || alias.isEmpty())
-			alias = SSession._getTableName();
+			alias = CaseInfo._getTableName();
 
 		for (String columnInfo : columns) {
 			if (rowResult.get(columnInfo).isNull()) continue;
 
-			if (columnInfo.equalsIgnoreCase(alias + "_session_id")) {
-				sSession.setId(rowResult.get(columnInfo).getLongValue());
+			if (columnInfo.equalsIgnoreCase(alias + "_case_info_id")) {
+				caseInfo.setId(rowResult.get(columnInfo).getLongValue());
 			} else if (columnInfo.equalsIgnoreCase("fPerson_person_id")) {
 				FPerson fPerson = FPersonService._construct(rowResult, null, "fPerson", columns);
-				sSession.setFPerson(fPerson);
+				caseInfo.setFPerson(fPerson);
 			} else if (columnInfo.equalsIgnoreCase(alias + "_job_id")) {
-				sSession.setJobId(rowResult.get(columnInfo).getLongValue());
+				caseInfo.setJobId(rowResult.get(columnInfo).getLongValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_status")) {
-				sSession.setStatus(rowResult.get(columnInfo).getStringValue());
+				caseInfo.setStatus(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_status_url")) {
-				sSession.setStatusUrl(rowResult.get(columnInfo).getStringValue());
+				caseInfo.setStatusUrl(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_server_url")) {
-				sSession.setServerUrl(rowResult.get(columnInfo).getStringValue());
+				caseInfo.setServerUrl(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_patient_identifier")) {
-				sSession.setPatientIdentifier(rowResult.get(columnInfo).getStringValue());
-			} else if (columnInfo.equalsIgnoreCase(alias + "_last_updated")) {
-				String dateString = rowResult.get(columnInfo).getStringValue();
-				Date date = SqlUtil.string2DateTime(dateString);
+				caseInfo.setPatientIdentifier(rowResult.get(columnInfo).getStringValue());
+			} else if (columnInfo.equalsIgnoreCase(alias + "_trigger_at")) {
+				Date date = SqlUtil.string2DateTime(rowResult.get(columnInfo).getStringValue());
 				if (date != null) {
-					sSession.setLastUpdated(date);
+					caseInfo.setTriggerAt(date);
+				}
+			} else if (columnInfo.equalsIgnoreCase(alias + "_last_updated")) {
+				Date date = SqlUtil.string2DateTime(rowResult.get(columnInfo).getStringValue());
+				if (date != null) {
+					caseInfo.setLastUpdated(date);
 				}
 			}
 		}
 
-		return sSession;
+		return caseInfo;
 	}	
 }
