@@ -85,6 +85,14 @@ public class ScheduledTask {
 	private VocabularyService vocabularyService;
 
 	private Long conceptIdStart;
+	
+	private Long thresholdDuration1;
+	private Long thresholdDuration2;
+	private Long thresholdDuration3;
+
+	private Long queryPeriod1;
+	private Long queryPeriod2;
+	private Long queryPeriod3;
 
 	protected FhirOmopVocabularyMapImpl fhirOmopVocabularyMap;
 
@@ -96,6 +104,15 @@ public class ScheduledTask {
 		// We are using the server operations implementation. 
 		WebApplicationContext myAppCtx = ContextLoaderListener.getCurrentWebApplicationContext();
 		myMapper = new OmopServerOperations(myAppCtx);
+
+		// Get PACER query logic variables.
+		thresholdDuration1 = System.getenv("thresholdDuration1") == null ? 1209600L : Long.getLong(System.getenv("thresholdDuration1"));
+		thresholdDuration2 = System.getenv("thresholdDuration2") == null ? 2419200L : Long.getLong(System.getenv("thresholdDuration2"));
+		thresholdDuration3 = System.getenv("thresholdDuration3") == null ? 4838400L : Long.getLong(System.getenv("thresholdDuration3"));
+
+		queryPeriod1 = System.getenv("queryPeriod1") == null ? 86400L : Long.getLong(System.getenv("queryPeriod1"));
+		queryPeriod2 = System.getenv("queryPeriod2") == null ? 604800L : Long.getLong(System.getenv("queryPeriod2"));
+		queryPeriod3 = System.getenv("queryPeriod3") == null ? 1209600L : Long.getLong(System.getenv("queryPeriod3"));
 	}
 
 	public String getSmartPacerBasicAuth() {
@@ -126,8 +143,14 @@ public class ScheduledTask {
 		RestTemplate restTemplate = new RestTemplate();
 
 		for (CaseInfo caseInfo : caseInfos) {
+			Date currentTime = new Date();
 			if (StaticValues.ACTIVE.equals(caseInfo.getStatus())) {
-				// If we are still in query status, call status URL to get FHIR syphilis registry data.
+				// check if it's time to do the query.
+				if (currentTime.before(caseInfo.getTriggerAt())) {
+					continue;
+				}
+
+				// call status URL to get FHIR syphilis registry data.
 				String statusURL = caseInfo.getStatusUrl();
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
 				ResponseEntity<String> response = null;
@@ -192,9 +215,17 @@ public class ScheduledTask {
 									// Error occurred on one of resources.
 									writeToLog(caseInfo, errMessage);
 								} else {
-									caseInfo.setStatus(StaticValues.INACTIVE);
+									if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration1))) {
+										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod1));
+									} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration2))) {
+										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod2));
+									} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration3))) {
+										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod3));
+									} else {
+										caseInfo.setStatus(StaticValues.INACTIVE);
+										writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
+									}
 									caseInfoService.update(caseInfo);
-									writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
 								}
 							}
 						} else {
@@ -263,6 +294,12 @@ public class ScheduledTask {
 								caseInfo.setStatusUrl(statusUrl);
 								caseInfo.setJobId(jobId);
 								caseInfo.setStatus(StaticValues.ACTIVE);
+								caseInfo.setActivated(currentTime);
+
+								// set the triggered_at using first query period
+								Long triggeredAt = currentTime.getTime() + queryPeriod1;
+								caseInfo.setTriggerAt(new Date(triggeredAt));
+
 								caseInfoService.update(caseInfo);
 
 								// log this session
