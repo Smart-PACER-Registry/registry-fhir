@@ -126,7 +126,7 @@ public class ScheduledTask {
 		RestTemplate restTemplate = new RestTemplate();
 
 		for (CaseInfo caseInfo : caseInfos) {
-			if (StaticValues.IN_QUERY.equals(caseInfo.getStatus())) {
+			if (StaticValues.ACTIVE.equals(caseInfo.getStatus())) {
 				// If we are still in query status, call status URL to get FHIR syphilis registry data.
 				String statusURL = caseInfo.getStatusUrl();
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
@@ -192,7 +192,7 @@ public class ScheduledTask {
 									// Error occurred on one of resources.
 									writeToLog(caseInfo, errMessage);
 								} else {
-									caseInfo.setStatus(StaticValues.COMPLETE);
+									caseInfo.setStatus(StaticValues.INACTIVE);
 									caseInfoService.update(caseInfo);
 									writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
 								}
@@ -262,7 +262,7 @@ public class ScheduledTask {
 								// Done. set it to in query
 								caseInfo.setStatusUrl(statusUrl);
 								caseInfo.setJobId(jobId);
-								caseInfo.setStatus(StaticValues.IN_QUERY);
+								caseInfo.setStatus(StaticValues.ACTIVE);
 								caseInfoService.update(caseInfo);
 
 								// log this session

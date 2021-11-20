@@ -33,44 +33,32 @@ import edu.gatech.chai.omopv5.model.entity.custom.Table;
  * @author Myung Choi
  */
 @Table(name="case_info")
-public class CaseInfo extends BaseEntity {
-	private static final Logger logger = LoggerFactory.getLogger(CaseInfo.class);
+public class FlagInfo extends BaseEntity {
+	private static final Logger logger = LoggerFactory.getLogger(FlagInfo.class);
 
 	@Id
-	@Column(name = "case_info_id")
+	@Column(name = "flag_info_id")
 	private Long id;
 
-	@Column(name="patient_identifier")
-	private String patientIdentifier;
+	@Column(name="case_info_id")
+	private CaseInfo caseInfo;
 
 	@JoinColumn(name = "person_id", table="f_person:fPerson,person:person", nullable = false)
 	private FPerson fPerson;
 	
-	@Column(name="job_id")
-	private Long jobId;
+	@Column(name="domain")
+	private String domain;
 	
-	@Column(name="status")
-	private String status;
+	@Column(name="flag_type")
+	private String flagType;
 	
-	@Column(name="status_url")
-	private String statusUrl;
-	
-	@Column(name="server_url")
-	private String serverUrl;
-
-	@Column(name="trigger_at")
-	private Date triggerAt;
-
 	@Column(name="last_updated")
 	private Date lastUpdated;
 
-	@Column(name="activated")
-	private Date activated;
+	@Column(name="annotation")
+	private String annotation;
 	
-	@Column(name="created")
-	private Date created;
-	
-	public CaseInfo() {
+	public FlagInfo() {
 		super();
 	}
 
@@ -82,12 +70,12 @@ public class CaseInfo extends BaseEntity {
 		this.id = id;
 	}
 
-	public String getPatientIdentifier() {
-		return patientIdentifier;
+	public CaseInfo getCaseInfo() {
+		return caseInfo;
 	}
 
-	public void setPatientIdentifier(String patientIdentifier) {
-		this.patientIdentifier = patientIdentifier;
+	public void setCaseInfo(CaseInfo caseInfo) {
+		this.caseInfo = caseInfo;
 	}
 
 	public FPerson getFPerson() {
@@ -98,44 +86,20 @@ public class CaseInfo extends BaseEntity {
 		this.fPerson = fPerson;
 	}
 
-	public Long getJodId() {
-		return jobId;
+	public String getDomain() {
+		return domain;
 	}
 
-	public void setJobId(Long jobId) {
-		this.jobId = jobId;
+	public void setDomain(String domain) {
+		this.domain = domain;
 	}
 
-	public String getStatus() {
-		return status;
+	public String getFlagType() {
+		return flagType;
 	}
 
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
-	public String getStatusUrl() {
-		return statusUrl;
-	}
-
-	public void setStatusUrl(String statusUrl) {
-		this.statusUrl = statusUrl;
-	}
-
-	public String getServerUrl() {
-		return serverUrl;
-	}
-
-	public void setServerUrl(String serverUrl) {
-		this.serverUrl = serverUrl;
-	}
-
-	public Date getTriggerAt() {
-		return triggerAt;
-	}
-
-	public void setTriggerAt(Date triggerAt) {
-		this.triggerAt = triggerAt;
+	public void setFlagType(String flagType) {
+		this.flagType = flagType;
 	}
 
 	public Date getLastUpdated() {
@@ -146,39 +110,31 @@ public class CaseInfo extends BaseEntity {
 		this.lastUpdated = lastUpdated;
 	}
 
-	public Date getActivated() {
-		return activated;
+	public String getAnnotation() {
+		return annotation;
 	}
 
-	public void setActivated(Date activated) {
-		this.activated = activated;
-	}
-
-	public Date getCreated() {
-		return created;
-	}
-
-	public void setCreated(Date created) {
-		this.created = created;
+	public void setAnnotation(String annotation) {
+		this.annotation = annotation;
 	}
 
 	@Override
 	public String getColumnName(String columnVariable) {
-		return CaseInfo._getColumnName(columnVariable);
+		return FlagInfo._getColumnName(columnVariable);
 	}
 
     public static String _getColumnName(String columnVariable) {
 
 		try {
-			Field field = CaseInfo.class.getDeclaredField(columnVariable);
+			Field field = FlagInfo.class.getDeclaredField(columnVariable);
 			if (field != null) {
 				Column annotation = field.getDeclaredAnnotation(Column.class);
 				if (annotation != null) {
-					return CaseInfo._getTableName() + "." + annotation.name();
+					return FlagInfo._getTableName() + "." + annotation.name();
 				} else {
 					JoinColumn joinAnnotation = field.getDeclaredAnnotation(JoinColumn.class);
 					if (joinAnnotation != null) {
-						return CaseInfo._getTableName() + "." + joinAnnotation.name();
+						return FlagInfo._getTableName() + "." + joinAnnotation.name();
 					}
 
 					logger.error("annotation is null for field=" + field.toString());
@@ -194,20 +150,20 @@ public class CaseInfo extends BaseEntity {
 
 	@Override
     public String getTableName() {
-		return CaseInfo._getTableName();
+		return FlagInfo._getTableName();
     }
 
     public static String _getTableName() {
-		Table annotation = CaseInfo.class.getDeclaredAnnotation(Table.class);
+		Table annotation = FlagInfo.class.getDeclaredAnnotation(Table.class);
 		if (annotation != null) {
 			return annotation.name();
 		}
-		return "case_info";
+		return "flag_info";
 	}
 
     @Override
     public String getForeignTableName(String foreignVariable) {
-		return CaseInfo._getForeignTableName(foreignVariable);
+		return FlagInfo._getForeignTableName(foreignVariable);
     }
 
 	public static String _getForeignTableName(String foreignVariable) {
@@ -219,10 +175,10 @@ public class CaseInfo extends BaseEntity {
     
     @Override
     public String getSqlSelectTableStatement(List<String> parameterList, List<String> valueList) {
-		return CaseInfo._getSqlTableStatement(parameterList, valueList);
+		return FlagInfo._getSqlTableStatement(parameterList, valueList);
     }
 
     public static String _getSqlTableStatement(List<String> parameterList, List<String> valueList) {
-		return "select * from case_info ";
+		return "select * from flag_info ";
 	}
 }
