@@ -37,10 +37,10 @@ public class FlagInfo extends BaseEntity {
 	private static final Logger logger = LoggerFactory.getLogger(FlagInfo.class);
 
 	@Id
-	@Column(name = "flag_info_id")
+	@Column(name = "flag_info_id", nullable = false)
 	private Long id;
 
-	@Column(name="case_info_id")
+	@Column(name="case_info_id", nullable = false)
 	private CaseInfo caseInfo;
 
 	@JoinColumn(name = "person_id", table="f_person:fPerson,person:person", nullable = false)
@@ -49,10 +49,13 @@ public class FlagInfo extends BaseEntity {
 	@Column(name="domain")
 	private String domain;
 	
-	@Column(name="flag_type")
+	@Column(name="domain_data_id")
+	private Long domainDataId;
+
+	@Column(name="flag_type", nullable = false)
 	private String flagType;
 	
-	@Column(name="last_updated")
+	@Column(name="last_updated", nullable = false)
 	private Date lastUpdated;
 
 	@Column(name="annotation")
@@ -92,6 +95,14 @@ public class FlagInfo extends BaseEntity {
 
 	public void setDomain(String domain) {
 		this.domain = domain;
+	}
+
+	public Long getDomainDataId() {
+		return domainDataId;
+	}
+
+	public void setDomainDataId(Long domainDataId) {
+		this.domainDataId = domainDataId;
 	}
 
 	public String getFlagType() {

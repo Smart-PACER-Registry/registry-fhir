@@ -18,12 +18,12 @@ public class FlagInfoServiceImp extends BaseEntityServiceImp<FlagInfo> implement
 
     @Override
     public FlagInfo construct(ResultSet rs, FlagInfo entity, String alias) {
-		return FlagInfoService._construct(rs, entity, alias);
+      return FlagInfoService._construct(rs, entity, alias);
     }
 
     @Override
     public FlagInfo construct(FieldValueList rowResult, FlagInfo entity, String alias, List<String> columns) {
-		return FlagInfoService._construct(rowResult, entity, alias, columns);
+      return FlagInfoService._construct(rowResult, entity, alias, columns);
     }
 	
 }

@@ -38,6 +38,8 @@ public interface FlagInfoService extends IService<FlagInfo> {
 					flagInfo.setFPerson(fPerson);
                 } else if (columnInfo.equalsIgnoreCase(alias + "_domain")) {
 					flagInfo.setDomain(rs.getString(columnInfo));
+				} else if (columnInfo.equalsIgnoreCase(alias + "_domain_data_id")) {
+					flagInfo.setDomainDataId(rs.getLong(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_flag_type")) {
 					flagInfo.setFlagType(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_last_updated")) {
@@ -76,6 +78,8 @@ public interface FlagInfoService extends IService<FlagInfo> {
 				flagInfo.setFPerson(fPerson);
 			} else if (columnInfo.equalsIgnoreCase(alias + "_domain")) {
 				flagInfo.setDomain(rowResult.get(columnInfo).getStringValue());
+			} else if (columnInfo.equalsIgnoreCase(alias + "_domain_data_id")) {
+				flagInfo.setDomainDataId(rowResult.get(columnInfo).getLongValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_flag_type")) {
 				flagInfo.setFlagType(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_last_updated")) {

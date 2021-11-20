@@ -16,13 +16,13 @@ import edu.gatech.chai.omopv5.model.entity.custom.Table;
 @Table(name="case_log")
 public class CaseLog extends BaseEntity {
     @Id
-	@Column(name = "case_log_id")
+	@Column(name = "case_log_id", nullable = false)
 	private Long id;
 
 	@JoinColumn(name = "case_info_id", nullable = false)
 	private CaseInfo caseInfo;
 
-    @Column(name = "log_datetime")
+    @Column(name = "log_datetime", nullable = false)
 	private Date logDatetime;
 	
     @Column(name = "text")

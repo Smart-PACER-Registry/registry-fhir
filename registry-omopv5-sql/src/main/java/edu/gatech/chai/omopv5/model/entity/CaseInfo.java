@@ -37,10 +37,10 @@ public class CaseInfo extends BaseEntity {
 	private static final Logger logger = LoggerFactory.getLogger(CaseInfo.class);
 
 	@Id
-	@Column(name = "case_info_id")
+	@Column(name = "case_info_id", nullable = false)
 	private Long id;
 
-	@Column(name="patient_identifier")
+	@Column(name="patient_identifier", nullable = false)
 	private String patientIdentifier;
 
 	@JoinColumn(name = "person_id", table="f_person:fPerson,person:person", nullable = false)
@@ -49,13 +49,13 @@ public class CaseInfo extends BaseEntity {
 	@Column(name="job_id")
 	private Long jobId;
 	
-	@Column(name="status")
+	@Column(name="status", nullable = false)
 	private String status;
 	
 	@Column(name="status_url")
 	private String statusUrl;
 	
-	@Column(name="server_url")
+	@Column(name="server_url", nullable = false)
 	private String serverUrl;
 
 	@Column(name="trigger_at")
@@ -67,7 +67,7 @@ public class CaseInfo extends BaseEntity {
 	@Column(name="activated")
 	private Date activated;
 	
-	@Column(name="created")
+	@Column(name="created", nullable = false)
 	private Date created;
 	
 	public CaseInfo() {
