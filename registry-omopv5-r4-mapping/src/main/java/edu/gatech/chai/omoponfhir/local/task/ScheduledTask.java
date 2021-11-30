@@ -106,9 +106,9 @@ public class ScheduledTask {
 		myMapper = new OmopServerOperations(myAppCtx);
 
 		// Get PACER query logic variables.
-		thresholdDuration1 = System.getenv("thresholdDuration1") == null ? 1209600L : Long.getLong(System.getenv("thresholdDuration1"));
-		thresholdDuration2 = System.getenv("thresholdDuration2") == null ? 2419200L : Long.getLong(System.getenv("thresholdDuration2"));
-		thresholdDuration3 = System.getenv("thresholdDuration3") == null ? 4838400L : Long.getLong(System.getenv("thresholdDuration3"));
+		thresholdDuration1 = System.getenv("thresholdDuration1") == null ? StaticValues.TWO_WEEKS_IN_SEC : Long.getLong(System.getenv("thresholdDuration1"));
+		thresholdDuration2 = System.getenv("thresholdDuration2") == null ? StaticValues.FOUR_WEEKS_IN_SEC : Long.getLong(System.getenv("thresholdDuration2"));
+		thresholdDuration3 = System.getenv("thresholdDuration3") == null ? StaticValues.EIGHT_WEEKS_IN_SEC : Long.getLong(System.getenv("thresholdDuration3"));
 
 		queryPeriod1 = System.getenv("queryPeriod1") == null ? 86400L : Long.getLong(System.getenv("queryPeriod1"));
 		queryPeriod2 = System.getenv("queryPeriod2") == null ? 604800L : Long.getLong(System.getenv("queryPeriod2"));

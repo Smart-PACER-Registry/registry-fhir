@@ -13,6 +13,10 @@ public class StaticValues {
 	public static final String ERROR      = "ERROR";
 	public static final String REQUEST    = "REQUEST";
 
+	public static final long TWO_WEEKS_IN_SEC = 1209600L;
+	public static final long FOUR_WEEKS_IN_SEC = 2419200L;
+	public static final long EIGHT_WEEKS_IN_SEC = 4838400L;
+
 	private StaticValues() {}
 
 	public static String serializeIt (Resource resource) {
