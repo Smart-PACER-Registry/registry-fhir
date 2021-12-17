@@ -17,6 +17,10 @@ public class StaticValues {
 	public static final long FOUR_WEEKS_IN_SEC = 2419200L;
 	public static final long EIGHT_WEEKS_IN_SEC = 4838400L;
 
+	public static final long ONE_DAY_IN_SEC = 86400L;
+	public static final long SEVEN_DAYS_IN_SEC = 604800L;
+	public static final long FOURTEEN_DAYS_IN_SEC = 1209600L;
+
 	private StaticValues() {}
 
 	public static String serializeIt (Resource resource) {

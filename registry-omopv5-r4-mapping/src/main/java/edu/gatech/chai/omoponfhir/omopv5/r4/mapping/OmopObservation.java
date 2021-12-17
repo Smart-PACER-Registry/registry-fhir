@@ -1043,7 +1043,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 				try {
 					if (fhirSystemUri != null && !fhirSystemUri.isEmpty()) {
 						OmopSystem = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(fhirSystemUri);
-						if ("None".equals(OmopSystem) == false) {
+						if (!"None".equals(OmopSystem)) {
 							// We can at least handle this. Save it
 							// We may find another one we can handle. Let it replace.
 							// 2nd choice is just 2nd choice.
@@ -1161,15 +1161,18 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			}
 		} else if (valueType instanceof StringType) {
 			String valueString = ((StringType)valueType).asStringValue();
-			String[] valueStringData = valueString.split("\\^");
-			if (valueStringData.length > 1) {
-				String omopVocId = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(valueStringData[0]);
-				if (!"None".equals(omopVocId)) {
-					valueString = valueString.replace(valueStringData[0], omopVocId);
+			if (valueString != null && !valueString.isEmpty()) {
+				String[] valueStringData = valueString.split("\\^");
+				if (valueStringData.length > 0) {
+					for (int i=0; i < valueStringData.length; i++) {
+						String omopVocId = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(valueStringData[i]);
+						if (!"None".equals(omopVocId)) {
+							valueString = valueString.replace(valueStringData[i], omopVocId);
+						}
+					}
 				}
+				observation.setValueAsString(valueString);
 			}
-
-			observation.setValueAsString(valueString);
 		}
 
 		if (fhirResource.getEffective() instanceof DateTimeType) {
@@ -1376,10 +1379,12 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			String text2use = note.getText();
 			if (isSurvey) {
 				String[] structuredSourceData = text2use.split("\\^");
-				if (structuredSourceData.length > 1) {
-					String omopVocId = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(structuredSourceData[0]);
-					if (!"None".equals(omopVocId)) {
-						text2use = text2use.replace(structuredSourceData[0], omopVocId);
+				if (structuredSourceData.length > 0) {
+					for (int i = 0; i < structuredSourceData.length; i++) {
+						String omopVocId = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(structuredSourceData[i]);
+						if (!"None".equals(omopVocId)) {
+							text2use = text2use.replace(structuredSourceData[i], omopVocId);
+						}
 					}
 				}
 			}

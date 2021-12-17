@@ -47,10 +47,13 @@ public class CaseInfo extends BaseEntity {
 	private FPerson fPerson;
 	
 	@Column(name="job_id")
-	private Long jobId;
+	private String jobId;
 	
 	@Column(name="status", nullable = false)
 	private String status;
+
+	@Column(name="server_host", nullable = false)
+	private String serverHost;
 	
 	@Column(name="status_url")
 	private String statusUrl;
@@ -98,11 +101,11 @@ public class CaseInfo extends BaseEntity {
 		this.fPerson = fPerson;
 	}
 
-	public Long getJodId() {
+	public String getJodId() {
 		return jobId;
 	}
 
-	public void setJobId(Long jobId) {
+	public void setJobId(String jobId) {
 		this.jobId = jobId;
 	}
 
@@ -112,6 +115,14 @@ public class CaseInfo extends BaseEntity {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public String getServerHost() {
+		return serverHost;
+	}
+
+	public void setServerHost(String serverHost) {
+		this.serverHost = serverHost;
 	}
 
 	public String getStatusUrl() {

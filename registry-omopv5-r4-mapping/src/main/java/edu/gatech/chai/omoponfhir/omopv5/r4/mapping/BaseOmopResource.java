@@ -351,7 +351,7 @@ public abstract class BaseOmopResource<v extends Resource, t extends BaseEntity,
 					if (fhirSystemUri != null && !fhirSystemUri.isEmpty()) {
 						omopSystem = fhirOmopVocabularyMap.getOmopVocabularyFromFhirSystemName(fhirSystemUri);
 
-						if ("None".equals(omopSystem) == false) {
+						if (!"None".equals(omopSystem)) {
 							// We can at least handle this. Save it
 							// We may find another one we can handle. Let it replace.
 							// 2nd choice is just 2nd choice.

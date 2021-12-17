@@ -131,11 +131,11 @@ public class OmopMedicationRequest extends BaseOmopResource<MedicationRequest, D
 		Long retOmopId = null;
 		if (omopId == null) {
 			retOmopId = getMyOmopService().create(drugExposure).getId();
-		} else {
-			retOmopId = getMyOmopService().update(drugExposure).getId();
 
 			// Create a deduplicate entry
 			createDuplicateEntry(fhirResource.getIdentifier(), "Drug", retOmopId);			
+		} else {
+			retOmopId = getMyOmopService().update(drugExposure).getId();
 		}
 		
 		return IdMapping.getFHIRfromOMOP(retOmopId, MedicationStatementResourceProvider.getType());

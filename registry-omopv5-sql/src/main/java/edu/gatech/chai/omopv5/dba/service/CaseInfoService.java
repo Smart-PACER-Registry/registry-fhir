@@ -33,9 +33,11 @@ public interface CaseInfoService extends IService<CaseInfo> {
 					FPerson fPerson = FPersonService._construct(rs, null, "fPerson");
 					caseInfo.setFPerson(fPerson);
                 } else if (columnInfo.equalsIgnoreCase(alias + "_job_id")) {
-					caseInfo.setJobId(rs.getLong(columnInfo));
+					caseInfo.setJobId(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_status")) {
 					caseInfo.setStatus(rs.getString(columnInfo));
+				} else if (columnInfo.equalsIgnoreCase(alias + "_server_host")) {
+					caseInfo.setServerHost(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_status_url")) {
 					caseInfo.setStatusUrl(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase(alias + "_server_url")) {
@@ -78,9 +80,11 @@ public interface CaseInfoService extends IService<CaseInfo> {
 				FPerson fPerson = FPersonService._construct(rowResult, null, "fPerson", columns);
 				caseInfo.setFPerson(fPerson);
 			} else if (columnInfo.equalsIgnoreCase(alias + "_job_id")) {
-				caseInfo.setJobId(rowResult.get(columnInfo).getLongValue());
+				caseInfo.setJobId(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_status")) {
 				caseInfo.setStatus(rowResult.get(columnInfo).getStringValue());
+			} else if (columnInfo.equalsIgnoreCase(alias + "_server_host")) {
+				caseInfo.setServerHost(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_status_url")) {
 				caseInfo.setStatusUrl(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase(alias + "_server_url")) {

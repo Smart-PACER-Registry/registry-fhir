@@ -12,13 +12,17 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
 import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.OperationOutcome;
+import org.hl7.fhir.r4.model.Parameters;
+import org.hl7.fhir.r4.model.StringType;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent;
+import org.hl7.fhir.r4.model.Parameters.ParametersParameterComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +35,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
@@ -41,7 +44,6 @@ import ca.uhn.fhir.parser.IParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.opencsv.CSVParser;
 
 import edu.gatech.chai.omoponfhir.local.dao.FhirOmopVocabularyMapImpl;
@@ -110,9 +112,17 @@ public class ScheduledTask {
 		thresholdDuration2 = System.getenv("thresholdDuration2") == null ? StaticValues.FOUR_WEEKS_IN_SEC : Long.getLong(System.getenv("thresholdDuration2"));
 		thresholdDuration3 = System.getenv("thresholdDuration3") == null ? StaticValues.EIGHT_WEEKS_IN_SEC : Long.getLong(System.getenv("thresholdDuration3"));
 
-		queryPeriod1 = System.getenv("queryPeriod1") == null ? 86400L : Long.getLong(System.getenv("queryPeriod1"));
-		queryPeriod2 = System.getenv("queryPeriod2") == null ? 604800L : Long.getLong(System.getenv("queryPeriod2"));
-		queryPeriod3 = System.getenv("queryPeriod3") == null ? 1209600L : Long.getLong(System.getenv("queryPeriod3"));
+		thresholdDuration1 *= 1000L;
+		thresholdDuration2 *= 1000L;
+		thresholdDuration3 *= 1000L;
+
+		queryPeriod1 = System.getenv("queryPeriod1") == null ? StaticValues.ONE_DAY_IN_SEC : Long.getLong(System.getenv("queryPeriod1"));
+		queryPeriod2 = System.getenv("queryPeriod2") == null ? StaticValues.SEVEN_DAYS_IN_SEC : Long.getLong(System.getenv("queryPeriod2"));
+		queryPeriod3 = System.getenv("queryPeriod3") == null ? StaticValues.FOURTEEN_DAYS_IN_SEC : Long.getLong(System.getenv("queryPeriod3"));
+
+		queryPeriod1 *= 1000L;
+		queryPeriod2 *= 1000L;
+		queryPeriod3 *= 1000L;
 	}
 
 	public String getSmartPacerBasicAuth() {
@@ -137,26 +147,53 @@ public class ScheduledTask {
 		caseInfoService.update(caseInfo);
 	}
 
+	protected String getEndPoint (String serverHost, String apiPoint) {
+		String endPoint;
+
+		if ((serverHost.endsWith("/") && apiPoint.startsWith("/"))
+			|| (!serverHost.endsWith("/") && !apiPoint.startsWith("/"))) {
+				endPoint = serverHost + "/" + apiPoint.substring(1);
+		} else if ((serverHost.endsWith("/") && !apiPoint.startsWith("/"))
+			|| (!serverHost.endsWith("/") && apiPoint.startsWith("/"))) {
+				endPoint = serverHost + apiPoint;
+		} else {
+			endPoint = serverHost + apiPoint;
+		}
+
+		return endPoint;
+	}
+
 	@Scheduled(initialDelay = 30000, fixedDelay = 30000)
 	public void runPeriodicQuery() {
 		List<CaseInfo> caseInfos = caseInfoService.searchWithoutParams(0, 0, "id ASC");
 		RestTemplate restTemplate = new RestTemplate();
+		IParser parser = StaticValues.myFhirContext.newJsonParser();
 
 		for (CaseInfo caseInfo : caseInfos) {
 			Date currentTime = new Date();
+			String serverHost = caseInfo.getServerHost();
+
 			if (StaticValues.ACTIVE.equals(caseInfo.getStatus())) {
 				// check if it's time to do the query.
 				if (currentTime.before(caseInfo.getTriggerAt())) {
+					logger.debug("Case (" + caseInfo.getId() + ") passing. TriggerTime: " + caseInfo.getTriggerAt().toString());
 					continue;
 				}
 
 				// call status URL to get FHIR syphilis registry data.
-				String statusURL = caseInfo.getStatusUrl();
+				String statusUrl = caseInfo.getStatusUrl();
+
 				HttpEntity<String> reqAuth = new HttpEntity<String>(createHeaders());
 				ResponseEntity<String> response = null;
 		
 				try {
-					response = restTemplate.exchange(statusURL, HttpMethod.GET, reqAuth, String.class);
+					String statusEndPoint;
+					if (statusUrl.startsWith("http")) {
+						statusEndPoint = statusUrl;
+					} else {
+						statusEndPoint = getEndPoint(serverHost, statusUrl);
+					}
+					response = restTemplate.exchange(statusEndPoint, HttpMethod.GET, reqAuth, String.class);
 				} catch (HttpClientErrorException e) {
 					// this is error like 4xx.
 					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getMessage());		
@@ -173,61 +210,95 @@ public class ScheduledTask {
 				HttpStatus statusCode = response.getStatusCode();
 				if (!statusCode.is2xxSuccessful()) {
 					logger.debug("Status Query Failed and Responded with statusCode:" + statusCode.toString());
-					writeToLog(caseInfo, "Status Query Failed and Responded with statusCode:" + statusCode.toString());
+					OperationOutcome oo = parser.parseResource(OperationOutcome.class, response.getBody());
+					if (oo != null && !oo.isEmpty()) {
+						String errorBody = "";
+						for (OperationOutcomeIssueComponent issue: oo.getIssue()) {
+							errorBody += issue.getCode() + ", ";
+						}	
+						writeToLog(caseInfo, "Status Query Failed and Responded with issue(s):" + errorBody);
+					} else {
+						writeToLog(caseInfo, "Status Query Failed and Responded with statusCode:" + statusCode.toString());
+					}
 				} else {
 					// Get response body
 					String responseBody = response.getBody();
 
 					if (responseBody != null && !responseBody.isEmpty()) {
-						String resultBundleString = null;
-						try {
-							JsonNode responseJson = mapper.readTree(responseBody);
-							JsonNode resultBundle = responseJson.get("results");
-							resultBundleString = mapper.writeValueAsString(resultBundle);
-						} catch (JsonProcessingException e) {
-							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") was not successful: " + e.getMessage());
-							e.printStackTrace();
+						Parameters parameters = parser.parseResource(Parameters.class, responseBody);
+						StringType jobStatus = (StringType) parameters.getParameter("jobStatus");
+						if (jobStatus == null || jobStatus.isEmpty()) {
 							continue;
 						}
 
-						if (resultBundleString != null) {
+						if (jobStatus != null && !jobStatus.isEmpty() && !"complete".equalsIgnoreCase(jobStatus.asStringValue())) {
+							logger.debug("jobStatus: " + jobStatus.asStringValue() + " skipping ... ");
+							continue;
+						}
+
+						List<ParametersParameterComponent> parameterComponents = parameters.getParameter();
+						Bundle resultBundle = null;
+						for (ParametersParameterComponent parameterComponent: parameterComponents) {
+							if ("result".equals(parameterComponent.getName())) {
+								resultBundle = (Bundle) parameterComponent.getResource();
+								break;
+							}
+						}
+
+						// if (resultBundle != null && !resultBundle.isEmpty()) {
+						// 	String responseJsonString = parser.encodeResourceToString(resultBundle);
+						// 	JsonNode responseJson = mapper.readTree(responseJsonString);							
+						// }
+
+						// String resultBundleString = null;
+						// try {
+						// 	JsonNode responseJson = mapper.readTree(responseBody);
+						// 	JsonNode resultBundle = responseJson.get("results");
+						// 	resultBundleString = mapper.writeValueAsString(resultBundle);
+						// } catch (JsonProcessingException e) {
+						// 	writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") was not successful: " + e.getMessage());
+						// 	e.printStackTrace();
+						// 	continue;
+						// }
+
+						if (resultBundle != null && !resultBundle.isEmpty()) {
 							// Convert the response body to FHIR Resource
-							IParser parser = StaticValues.myFhirContext.newJsonParser();
-							Bundle responseBundle = parser.parseResource(Bundle.class, resultBundleString);
+							// Bundle responseBundle = parser.parseResource(Bundle.class, resultBundleString);
 
 							// Save the response bundle to registry db.
-							if (responseBundle != null && !responseBundle.isEmpty()) {
-								List<BundleEntryComponent> entries = responseBundle.getEntry();
-								List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, caseInfo);
-								int errorFlag = 0;
-								String errMessage = "";
-								for (BundleEntryComponent responseEntry : responseEntries) {
-									if (!responseEntry.getResponse().getStatus().startsWith("201") 
-										&& !responseEntry.getResponse().getStatus().startsWith("200")) {
-										String jsonResource = StaticValues.serializeIt(responseEntry.getResource());
-										errMessage += "Failed to create/add " + jsonResource;
-										logger.error(errMessage);
-										errorFlag = 1;
-									}
-								}
-
-								if (errorFlag == 1) {
-									// Error occurred on one of resources.
-									writeToLog(caseInfo, errMessage);
-								} else {
-									if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration1))) {
-										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod1));
-									} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration2))) {
-										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod2));
-									} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration3))) {
-										caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod3));
-									} else {
-										caseInfo.setStatus(StaticValues.INACTIVE);
-										writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
-									}
-									caseInfoService.update(caseInfo);
+							// if (responseBundle != null && !responseBundle.isEmpty()) {
+							List<BundleEntryComponent> entries = resultBundle.getEntry();
+							List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, caseInfo);
+							int errorFlag = 0;
+							String errMessage = "";
+							for (BundleEntryComponent responseEntry : responseEntries) {
+								if (!responseEntry.getResponse().getStatus().startsWith("201") 
+									&& !responseEntry.getResponse().getStatus().startsWith("200")) {
+									String jsonResource = StaticValues.serializeIt(responseEntry.getResource());
+									errMessage += "Failed to create/add " + jsonResource;
+									logger.error(errMessage);
+									errorFlag = 1;
 								}
 							}
+
+							if (errorFlag == 1) {
+								// Error occurred on one of resources.
+								writeToLog(caseInfo, errMessage);
+							} else {
+								logger.debug("TRIGGER: current_time=" + currentTime.getTime() + ", activated_time = " + caseInfo.getActivated().getTime() + ", thresholdDuration1 = " + thresholdDuration1 + ", threshold_at = " + (new Date(caseInfo.getActivated().getTime()+thresholdDuration1)).getTime() + ", trigger_at=" + (new Date(currentTime.getTime()+queryPeriod1).getTime()));
+								if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration1))) {
+									caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod1));
+								} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration2))) {
+									caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod2));
+								} else if (currentTime.before(new Date(caseInfo.getActivated().getTime()+thresholdDuration3))) {
+									caseInfo.setTriggerAt(new Date(currentTime.getTime()+queryPeriod3));
+								} else {
+									caseInfo.setStatus(StaticValues.INACTIVE);
+									writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") changed status to " + caseInfo.getStatus());
+								}
+								caseInfoService.update(caseInfo);
+							}
+							// }
 						} else {
 							writeToLog(caseInfo, "The response for PACER query has no results");
 						}
@@ -235,87 +306,107 @@ public class ScheduledTask {
 				}
 			} else if (StaticValues.REQUEST.equals(caseInfo.getStatus())) {
 				// Send a request. This is triggered by a new ELR or NoSuchRequest from PACER server
-				JsonNode patientNode = mapper.createObjectNode();
 				String patientIdentifier = caseInfo.getPatientIdentifier();
 				if (patientIdentifier != null) {
-					((ObjectNode) patientNode).put("patient_id", patientIdentifier);
-
-					JsonNode requestJson = mapper.createObjectNode();
-					((ObjectNode) requestJson).put("jobType", "SyphilisRegistry");
-					((ObjectNode) requestJson).set("params", patientNode);
-			
-					HttpHeaders headers = createHeaders();
-					headers.setContentType(MediaType.APPLICATION_JSON);
-					HttpEntity<JsonNode> entity = new HttpEntity<JsonNode>(requestJson, headers);
-
+					// Create Parameters for the REQUEST.
+					Parameters parameters = new Parameters()
+						.addParameter(
+							new ParametersParameterComponent(new StringType("patientIdentifier"))
+								.setValue(new StringType(patientIdentifier))
+						)
+						.addParameter(
+							new ParametersParameterComponent(new StringType("jobPackage"))
+								.setValue(new StringType("SyphilisRegistry"))
+					);
+					
+					String parameterJson = parser.encodeResourceToString(parameters);
+					
+					JsonNode requestJson = null;
 					ResponseEntity<String> response = null;
 					try {
-						response = restTemplate.postForEntity(caseInfo.getServerUrl() + "/Jobs/", entity, String.class);
-						Map<String, String> what = entity.getHeaders().toSingleValueMap();
-						for (Map.Entry<String, String> entry : what.entrySet()) {
-							logger.debug(entry.getKey() + ":" + entry.getValue());
-						}
+						requestJson = mapper.readTree(parameterJson);
+						HttpHeaders headers = createHeaders();
+						headers.setContentType(MediaType.APPLICATION_JSON);
+						HttpEntity<JsonNode> entity = new HttpEntity<JsonNode>(requestJson, headers);
+	
+						String serverUrl = caseInfo.getServerUrl();
+						String serverEndPoint;
+						if (serverUrl.startsWith("http")) {
+							serverEndPoint = serverUrl;
+						} else {
+							if (serverHost == null || serverHost.isEmpty()) {
+								writeToLog(caseInfo, "server endpoint error: " + serverHost + serverUrl);
+								logger.error("server endpoint error: " + serverHost + serverUrl);
+								continue;
+							} 
 
-						logger.debug(entity.getBody().toPrettyString());
-					} catch (RestClientException e) {
-						// log this session
+							serverEndPoint = getEndPoint(serverHost, serverUrl);
+						}
+						response = restTemplate.postForEntity(serverEndPoint, entity, String.class);
+
+					} catch (JsonProcessingException e) {
 						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") REQUEST FAILED: " + e.getMessage());
 						e.printStackTrace();
 						continue;
 					}
+			
 					if (response.getStatusCode().equals(HttpStatus.CREATED) || response.getStatusCode().equals(HttpStatus.OK)) {
 						// Get Location
-						Long jobId = 0L;
-						String statusUrl = "";
+						StringType jobId = null;
 						HttpHeaders responseHeaders = response.getHeaders();
-						URI locationUri = responseHeaders.getLocation();
+						URI statusUri = responseHeaders.getLocation();
+						String responseBody = response.getBody();
 
-						if (locationUri != null) {
-							String locationUriPath = locationUri.getPath();
-							if (locationUriPath != null) {
-								if (locationUri.isAbsolute()) {
-									statusUrl = locationUriPath;
-								} else {
-									statusUrl = caseInfo.getServerUrl() + locationUriPath;
-								}
-
-								String[] paths = locationUriPath.split("/");
-								String jobIdString = paths[paths.length - 1];
-								jobId = Long.parseLong(jobIdString);
-							}
+						if (responseBody != null && !responseBody.isEmpty()) {
+							logger.debug("response body for REQUEST status: " + responseBody);
+							Parameters returnedParameters = parser.parseResource(Parameters.class, responseBody);
+							jobId = (StringType) returnedParameters.getParameter("jobId");
 						}
 
-						if (jobId == 0L) {
+						if (jobId == null || jobId.isEmpty()) {
 							// We failed to get a JobID.
 							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") failed to get jobId");
 						} else {
-							if (statusUrl != null && !statusUrl.isEmpty()) {
+							if (statusUri != null) {
 								// Done. set it to in query
-								caseInfo.setStatusUrl(statusUrl);
-								caseInfo.setJobId(jobId);
+								caseInfo.setStatusUrl(statusUri.toString());
+								caseInfo.setJobId(jobId.asStringValue());
 								caseInfo.setStatus(StaticValues.ACTIVE);
 								caseInfo.setActivated(currentTime);
 
-								// set the triggered_at using first query period
-								Long triggeredAt = currentTime.getTime() + queryPeriod1;
+								// set the triggered_at. Since this is a REQUEST, we set it to now.
+								Long triggeredAt = currentTime.getTime();
 								caseInfo.setTriggerAt(new Date(triggeredAt));
 
 								caseInfoService.update(caseInfo);
 
 								// log this session
-								writeToLog(caseInfo, "caes info (" + caseInfo.getId() + ") is updated to IN_QUERY");
+								writeToLog(caseInfo, "caes info (" + caseInfo.getId() + ") is updated to " + StaticValues.ACTIVE);
 							} else {
-								writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") gets incorrect response");
+								writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") gets no location info in header");
 							}
 						}
 					} else {
-						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") error response (" + response.getStatusCode().toString() + ")");
+						// non 2xx received. Check the OperationOutcome.
+						String errorBody = response.getBody();
+						if (errorBody != null && !errorBody.isEmpty()) {
+							OperationOutcome oo = parser.parseResource(OperationOutcome.class, errorBody);
+							String issueDesc = "";
+							for (OperationOutcomeIssueComponent issue: oo.getIssue()) {
+								issueDesc += issue.getCode().toString() + ", ";
+							}
+							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") error response (" + issueDesc + ")");
+						} else {
+							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") error response (" + response.getStatusCode().toString() + ")");
+						}
 					}					
 				} else {
 					// This cannot happen as patient identifier is a required field.
 					// BUt, if this ever happens, we write this in session log and return.
 					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") without patient identifier");
 				}
+			} else {
+				logger.debug("Status Not Found: " + caseInfo.getStatus());
 			}
 		}
 	}
