@@ -8,10 +8,11 @@ import ca.uhn.fhir.parser.IParser;
 public class StaticValues {
 	public static final FhirContext myFhirContext = FhirContext.forR4();
 	public static final long CONCEPT_MY_SPACE = 2000000000L;
-	public static final String ACTIVE   = "ACTIVE";
-	public static final String INACTIVE   = "INACTIVE";
-	public static final String ERROR      = "ERROR";
-	public static final String REQUEST    = "REQUEST";
+	public static final String ACTIVE            = "ACTIVE";
+	public static final String INACTIVE          = "INACTIVE";
+	public static final String ERROR             = "ERROR";
+	public static final String REQUEST           = "REQUEST";
+	public static final String REQUEST_IN_ACTIVE = "REQUEST_IN_ACTIVE";
 
 	public static final long TWO_WEEKS_IN_SEC = 1209600L;
 	public static final long FOUR_WEEKS_IN_SEC = 2419200L;

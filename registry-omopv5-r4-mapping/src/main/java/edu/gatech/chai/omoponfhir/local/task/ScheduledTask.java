@@ -197,13 +197,15 @@ public class ScheduledTask {
 				} catch (HttpClientErrorException e) {
 					// this is error like 4xx.
 					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getMessage());		
-					e.printStackTrace();
 
 					// If the error is 404, then change the task type to REQUEST.
 					if (HttpStatus.NOT_FOUND == e.getStatusCode()) {
-						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS Changing to " + StaticValues.REQUEST);		
-						changeCaseInfoStatus(caseInfo, StaticValues.REQUEST);
+						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS Changing to " + StaticValues.REQUEST_IN_ACTIVE);		
+						changeCaseInfoStatus(caseInfo, StaticValues.REQUEST_IN_ACTIVE);
+					} else {
+						e.printStackTrace();
 					}
+
 					continue;
 				}
 
@@ -245,28 +247,7 @@ public class ScheduledTask {
 							}
 						}
 
-						// if (resultBundle != null && !resultBundle.isEmpty()) {
-						// 	String responseJsonString = parser.encodeResourceToString(resultBundle);
-						// 	JsonNode responseJson = mapper.readTree(responseJsonString);							
-						// }
-
-						// String resultBundleString = null;
-						// try {
-						// 	JsonNode responseJson = mapper.readTree(responseBody);
-						// 	JsonNode resultBundle = responseJson.get("results");
-						// 	resultBundleString = mapper.writeValueAsString(resultBundle);
-						// } catch (JsonProcessingException e) {
-						// 	writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") was not successful: " + e.getMessage());
-						// 	e.printStackTrace();
-						// 	continue;
-						// }
-
 						if (resultBundle != null && !resultBundle.isEmpty()) {
-							// Convert the response body to FHIR Resource
-							// Bundle responseBundle = parser.parseResource(Bundle.class, resultBundleString);
-
-							// Save the response bundle to registry db.
-							// if (responseBundle != null && !responseBundle.isEmpty()) {
 							List<BundleEntryComponent> entries = resultBundle.getEntry();
 							List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, caseInfo);
 							int errorFlag = 0;
@@ -304,7 +285,8 @@ public class ScheduledTask {
 						}
 					}
 				}
-			} else if (StaticValues.REQUEST.equals(caseInfo.getStatus())) {
+			} else if (StaticValues.REQUEST.equals(caseInfo.getStatus()) 
+				|| StaticValues.REQUEST_IN_ACTIVE.equals(caseInfo.getStatus())) {
 				// Send a request. This is triggered by a new ELR or NoSuchRequest from PACER server
 				String patientIdentifier = caseInfo.getPatientIdentifier();
 				if (patientIdentifier != null) {
@@ -372,7 +354,9 @@ public class ScheduledTask {
 								caseInfo.setStatusUrl(statusUri.toString());
 								caseInfo.setJobId(jobId.asStringValue());
 								caseInfo.setStatus(StaticValues.ACTIVE);
-								caseInfo.setActivated(currentTime);
+								if (StaticValues.REQUEST.equals(caseInfo.getStatus())) {
+									caseInfo.setActivated(currentTime);
+								}
 
 								// set the triggered_at. Since this is a REQUEST, we set it to now.
 								Long triggeredAt = currentTime.getTime();
@@ -383,7 +367,7 @@ public class ScheduledTask {
 								// log this session
 								writeToLog(caseInfo, "caes info (" + caseInfo.getId() + ") is updated to " + StaticValues.ACTIVE);
 							} else {
-								writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") gets no location info in header");
+								writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") gets no location info in the response header");
 							}
 						}
 					} else {
