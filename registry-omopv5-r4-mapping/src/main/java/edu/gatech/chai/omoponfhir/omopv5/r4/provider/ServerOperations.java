@@ -110,4 +110,10 @@ public class ServerOperations {
 		
 		return retVal;
 	}
+
+	@Operation(name="$registry-control")
+	public Bundle registryControlOperation() {
+		return null;
+	}
+
 }
