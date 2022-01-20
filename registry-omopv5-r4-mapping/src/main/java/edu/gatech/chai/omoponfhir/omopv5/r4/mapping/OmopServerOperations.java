@@ -193,11 +193,54 @@ public class OmopServerOperations {
 			
 			if (resource.getResourceType() == ResourceType.Observation) {
 				Observation observation = (Observation) resource;
+				// we preocess the one without focus.
+				List<Reference> focuses = observation.getFocus();
+				if (!focuses.isEmpty()) {
+					// We write the observations that do not have focus.
+					// this is needed because focus can focus itself.
+					continue;
+				}
+
 				if (observation.getSubject().isEmpty() && caseInfo != null) {
 					observation.getSubject().setReferenceElement(new IdType("Patient", caseInfo.getFPerson().getId()));
 				} else {
 					updateReference(observation.getSubject());
 				}
+
+				Long fhirId = OmopObservation.getInstance().toDbase(observation, null);
+				BundleEntryComponent newEntry;
+				if (fhirId == null || fhirId == 0L) {
+					newEntry = addResponseEntry("400 Bad Request", null);
+					newEntry.setResource(observation);
+				} else {
+					referenceIds.put(entry.getFullUrl(), ObservationResourceProvider.getType() + "/" + fhirId);
+					newEntry = addResponseEntry("201 Created", "Observation/" + fhirId);
+				}
+				responseEntries.add(newEntry);
+				logger.debug("Added observation(non-focus contained) info to referenceIds " + entry.getFullUrl() + "->" + fhirId);
+			} 
+		}
+
+		// We need to update self reference on Observation (for focus)
+		for (BundleEntryComponent entry : entries) {
+			Resource resource = entry.getResource();
+			
+			if (resource.getResourceType() == ResourceType.Observation) {
+				Observation observation = (Observation) resource;
+				// we preocess the one without focus.
+				List<Reference> focuses = observation.getFocus();
+				if (focuses.isEmpty()) {
+					// We write the observations that do not have focus.
+					// this is needed because focus can focus itself.
+					continue;
+				}
+
+				if (observation.getSubject().isEmpty() && caseInfo != null) {
+					observation.getSubject().setReferenceElement(new IdType("Patient", caseInfo.getFPerson().getId()));
+				} else {
+					updateReference(observation.getSubject());
+				}
+				
 				updateReferences(observation.getFocus());
 
 				Long fhirId = OmopObservation.getInstance().toDbase(observation, null);
@@ -210,7 +253,7 @@ public class OmopServerOperations {
 					newEntry = addResponseEntry("201 Created", "Observation/" + fhirId);
 				}
 				responseEntries.add(newEntry);
-				logger.debug("Added observation info to referenceIds " + entry.getFullUrl() + "->" + fhirId);
+				logger.debug("Added observation(focus-contained) info to referenceIds " + entry.getFullUrl() + "->" + fhirId);
 			} 
 		}
 
