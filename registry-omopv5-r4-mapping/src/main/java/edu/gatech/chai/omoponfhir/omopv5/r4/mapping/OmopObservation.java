@@ -1604,7 +1604,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			domainConceptId2 = 13L;
 		} else if (ConditionResourceProvider.getType().equals(targetResourceType)) {
 			domainConceptId2 = 19L;
-		} if (ObservationResourceProvider.getType().equals(targetResourceType)) {
+		} else if (ObservationResourceProvider.getType().equals(targetResourceType)) {
 			if (factId2 < 0) {
 				domainConceptId2 = 27L;
 			} else {
