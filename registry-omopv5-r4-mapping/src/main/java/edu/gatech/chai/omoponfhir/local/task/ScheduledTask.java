@@ -35,7 +35,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.UnknownHttpStatusCodeException;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -195,17 +197,19 @@ public class ScheduledTask {
 					}
 					response = restTemplate.exchange(statusEndPoint, HttpMethod.GET, reqAuth, String.class);
 				} catch (HttpClientErrorException e) {
-					// this is error like 4xx.
-					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getMessage());		
-
-					// If the error is 404, then change the task type to REQUEST.
-					if (HttpStatus.NOT_FOUND == e.getStatusCode()) {
-						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS Changing to " + StaticValues.REQUEST_IN_ACTIVE);		
-						changeCaseInfoStatus(caseInfo, StaticValues.REQUEST_IN_ACTIVE);
-					} else {
-						e.printStackTrace();
-					}
-
+					String rBody = e.getResponseBodyAsString();
+					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getStatusCode() + "\n" + rBody);		
+					changeCaseInfoStatus(caseInfo, StaticValues.ERROR);
+					continue;
+				} catch (HttpServerErrorException e) {
+					String rBody = e.getResponseBodyAsString();
+					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") SERVER ERROR: " + e.getStatusCode() + "\n" + rBody);
+					continue;
+					// We do not change the status as this is a server error.
+				} catch (UnknownHttpStatusCodeException e) {
+					String rBody = e.getResponseBodyAsString();
+					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED with Unknown code\n" + rBody);		
+					changeCaseInfoStatus(caseInfo, StaticValues.ERROR);
 					continue;
 				}
 
@@ -326,7 +330,7 @@ public class ScheduledTask {
 						}
 						response = restTemplate.postForEntity(serverEndPoint, entity, String.class);
 
-					} catch (JsonProcessingException e) {
+					} catch (Exception e) {
 						writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") REQUEST FAILED: " + e.getMessage());
 						e.printStackTrace();
 						continue;
@@ -350,13 +354,13 @@ public class ScheduledTask {
 							writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") failed to get jobId");
 						} else {
 							if (statusUri != null) {
-								// Done. set it to in query
+								// Done. set it to ACTIVE
 								caseInfo.setStatusUrl(statusUri.toString());
 								caseInfo.setJobId(jobId.asStringValue());
-								caseInfo.setStatus(StaticValues.ACTIVE);
 								if (StaticValues.REQUEST.equals(caseInfo.getStatus())) {
 									caseInfo.setActivated(currentTime);
 								}
+								caseInfo.setStatus(StaticValues.ACTIVE);
 
 								// set the triggered_at. Since this is a REQUEST, we set it to now.
 								Long triggeredAt = currentTime.getTime();
