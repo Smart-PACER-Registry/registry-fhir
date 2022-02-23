@@ -16,13 +16,19 @@
 package edu.gatech.chai.omoponfhir.omopv5.r4.mapping;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.hl7.fhir.r4.model.Attachment;
+import org.hl7.fhir.r4.model.CodeableConcept;
+import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.Condition;
+import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.IdType;
+import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.MedicationStatement;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Reference;
@@ -31,11 +37,15 @@ import org.hl7.fhir.r4.model.ResourceType;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryResponseComponent;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceContentComponent;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
+import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 
 import edu.gatech.chai.omoponfhir.omopv5.r4.model.USCorePatient;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ConditionResourceProvider;
+import edu.gatech.chai.omoponfhir.omopv5.r4.provider.DocumentReferenceResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ObservationResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.PatientResourceProvider;
@@ -134,6 +144,45 @@ public class OmopServerOperations {
 
 				referenceIds.put(entry.getFullUrl(), PatientResourceProvider.getType() + "/" + fhirId);
 				logger.debug("Added patient info to referenceIds " + entry.getFullUrl() + "->" + fhirId);
+			}
+		}
+
+		// any person related resources such as practitioners, person, etc. here when needed.
+
+		// DocumentReference
+		for (BundleEntryComponent entry : entries) {
+			Resource resource = entry.getResource();
+
+			if (resource.getResourceType() == ResourceType.DocumentReference) {
+				logger.debug("Trying to add document reference: " + entry.getFullUrl());
+				DocumentReference documentReference = (DocumentReference) resource;
+				updateReference(documentReference.getSubject());
+				updateReferences(documentReference.getAuthor());
+				updateReference(documentReference.getAuthenticator());
+				updateReference(documentReference.getCustodian());
+
+				for (DocumentReferenceRelatesToComponent relatesTo : documentReference.getRelatesTo()) {
+					updateReference(relatesTo.getTarget());
+				}
+
+				if (!documentReference.getContext().isEmpty()) {
+					updateReferences(documentReference.getContext().getEncounter());
+					updateReference(documentReference.getContext().getSourcePatientInfo());
+					updateReferences(documentReference.getContext().getRelated());
+				}
+
+				Long fhirId = OmopDocumentReference.getInstance().toDbase(documentReference, null);
+				BundleEntryComponent newEntry;
+				if (fhirId == null || fhirId == 0L) {
+					newEntry = addResponseEntry("400 Bad Request", null);
+					newEntry.setResource(documentReference);
+				} else {
+					referenceIds.put(entry.getFullUrl(), DocumentReferenceResourceProvider.getType() + "/" + fhirId);
+					newEntry = addResponseEntry("201 Created", "DocumentReference/" + fhirId);
+				}
+
+				responseEntries.add(newEntry);
+				logger.debug("Added document reference info to referenceIds " + entry.getFullUrl() + "->" + fhirId);
 			}
 		}
 
@@ -241,6 +290,47 @@ public class OmopServerOperations {
 					updateReference(observation.getSubject());
 				}
 				
+				// For focus, if we are focusing on DocumentReference, we should check
+				// if we have the DocumentReference attached or we just have a link to it. 
+				// If we don't have it attached, then we need to create one and write the link.
+				for (Reference reference : observation.getFocus()) {
+					Reference origReference = reference;
+					updateReference(reference);
+
+					if ("DocumentReference".equals(reference.getReferenceElement().getResourceType()) && reference.getReference().equals(origReference.getReference())) {
+						// The reference is not updated. This means that we don't have the document reference attached.
+						// Create one here.
+						DocumentReference linkNote = new DocumentReference();
+						linkNote.setSubject(observation.getSubject());
+						linkNote.setStatus(DocumentReferenceStatus.CURRENT);
+						linkNote.setType(new CodeableConcept(new Coding("http://loinc.org", "34109-9", "Note")));
+						linkNote.setDate(new Date());
+
+						Identifier noteIdentifier = new Identifier();
+						noteIdentifier.setSystem("urn:gtri:registry_manager");
+						noteIdentifier.setValue(origReference.getReference());
+						linkNote.addIdentifier(noteIdentifier);
+
+						Attachment attachment = new Attachment();
+						attachment.setContentType("text/plain");
+						attachment.setLanguage("en-US");
+						attachment.setData(origReference.getReference().getBytes());
+						DocumentReferenceContentComponent docComponent = new DocumentReferenceContentComponent(attachment);
+						linkNote.addContent(docComponent);
+
+						Long fhirId = OmopDocumentReference.getInstance().toDbase(linkNote, null);
+						BundleEntryComponent newEntry;
+						if (fhirId == null || fhirId == 0L) {
+							newEntry = addResponseEntry("400 Bad Request", null);
+						} else {
+							reference.setReferenceElement(new IdType(DocumentReferenceResourceProvider.getType(), fhirId));
+							newEntry = addResponseEntry("201 Created", "DocumentReference/" + fhirId);
+						}
+						newEntry.setResource(linkNote);		
+						responseEntries.add(newEntry);
+					}
+
+				}
 				updateReferences(observation.getFocus());
 
 				Long fhirId = OmopObservation.getInstance().toDbase(observation, null);

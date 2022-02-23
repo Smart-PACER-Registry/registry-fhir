@@ -34,8 +34,6 @@ import org.hl7.fhir.r4.model.MessageHeader.ResponseType;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueSeverity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.WebApplicationContext;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
@@ -61,14 +59,18 @@ import edu.gatech.chai.omopv5.model.entity.FPerson;
 public class ServerOperations {
 	private static final Logger logger = LoggerFactory.getLogger(ServerOperations.class);
 	private OmopServerOperations myMapper;
-	
+	private String rcApiHost;
 	private CaseInfoService caseInfoService;
 
 	public ServerOperations() {
 		WebApplicationContext myAppCtx = ContextLoaderListener.getCurrentWebApplicationContext();
 		myMapper = new OmopServerOperations(myAppCtx);
 		caseInfoService = myAppCtx.getBean(CaseInfoService.class);
-		// caseInfoService = new CaseInfoServiceImp();
+
+		rcApiHost = System.getenv("RCAPI_HOST");
+		if (rcApiHost == null || rcApiHost.isEmpty()) {
+			rcApiHost = "https://gt-apps.hdap.gatech.edu/rc-api";
+		}
 	}
 	
 	@Operation(name="$process-message")
@@ -215,7 +217,7 @@ public class ServerOperations {
 					caseInfo.setPatientIdentifier(patientIdentifier);
 					caseInfo.setFPerson(fPerson);
 					caseInfo.setStatus(StaticValues.REQUEST);
-					caseInfo.setServerHost("https://gt-apps.hdap.gatech.edu/rc-api");
+					caseInfo.setServerHost(this.rcApiHost);
 					caseInfo.setServerUrl("/forms/start?asyncFlag=true");
 					caseInfo.setCreated(new Date());
 					caseInfoService.create(caseInfo);

@@ -56,6 +56,7 @@ import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.param.TokenParamModifier;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ConditionResourceProvider;
+import edu.gatech.chai.omoponfhir.omopv5.r4.provider.DocumentReferenceResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.EncounterResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.MedicationStatementResourceProvider;
 import edu.gatech.chai.omoponfhir.omopv5.r4.provider.ObservationResourceProvider;
@@ -1056,15 +1057,6 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			}
 		}
 
-		// if (codingFound == null && codingSecondChoice == null) {
-		// // We can't save this resource to OMOP.. sorry...
-		// try {
-		// throw new FHIRException("We couldn't support the code");
-		// } catch (FHIRException e) {
-		// e.printStackTrace();
-		// }
-		// }
-
 		Concept concept = null;
 		if (codingFound != null) {
 			// Find the concept id for this coding.
@@ -1610,6 +1602,8 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			} else {
 				domainConceptId2 = 21L;
 			}
+		} else if (DocumentReferenceResourceProvider.getType().equals(targetResourceType)) {
+			domainConceptId2 = 5085L;
 		} else {
 			logger.error ("Not supported focus link resource. Please contact developer to add " + targetResourceType + " resource");
 			return;

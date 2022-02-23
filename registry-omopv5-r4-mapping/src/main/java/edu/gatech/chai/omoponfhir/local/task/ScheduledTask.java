@@ -43,7 +43,6 @@ import org.springframework.web.context.WebApplicationContext;
 
 import ca.uhn.fhir.parser.IParser;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVParser;
@@ -103,7 +102,7 @@ public class ScheduledTask {
 	public ScheduledTask() {
 		conceptIdStart = StaticValues.CONCEPT_MY_SPACE;
 		fhirOmopVocabularyMap = new FhirOmopVocabularyMapImpl();
-		setSmartPacerBasicAuth("username:password");
+		setSmartPacerBasicAuth(System.getenv("RCAPI_BASIC_AUTH"));
 
 		// We are using the server operations implementation. 
 		WebApplicationContext myAppCtx = ContextLoaderListener.getCurrentWebApplicationContext();
@@ -132,7 +131,9 @@ public class ScheduledTask {
 	}
 
 	public void setSmartPacerBasicAuth(String smartPacerBasicAuth) {
-		this.smartPacerBasicAuth = smartPacerBasicAuth;
+		if (smartPacerBasicAuth != null && !smartPacerBasicAuth.isEmpty()) {
+			this.smartPacerBasicAuth = smartPacerBasicAuth;
+		}
 	}
 
 	protected void writeToLog (CaseInfo caseInfo, String message) {
@@ -199,7 +200,7 @@ public class ScheduledTask {
 				} catch (HttpClientErrorException e) {
 					String rBody = e.getResponseBodyAsString();
 					writeToLog(caseInfo, "case info (" + caseInfo.getId() + ") STATUS GET FAILED: " + e.getStatusCode() + "\n" + rBody);		
-					changeCaseInfoStatus(caseInfo, StaticValues.ERROR);
+					changeCaseInfoStatus(caseInfo, StaticValues.REQUEST);
 					continue;
 				} catch (HttpServerErrorException e) {
 					String rBody = e.getResponseBodyAsString();

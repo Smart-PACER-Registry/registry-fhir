@@ -16,7 +16,7 @@
 	<groupId>edu.gatech.chai</groupId>
 	<artifactId>registry-omopv5-r4-mapping</artifactId>
 	<packaging>jar</packaging>
-	<version>1.2.2</version>
+	<version>1.2.3</version>
 	<name>registry-omopv5-r4-mapping</name>
 	<description>Registry-FHIR Mapping for OMOP version 5.4 and FHIR R4</description>
 	<url>http://maven.apache.org</url>
@@ -25,7 +25,7 @@
 		<hapi_stable_version>5.5.1</hapi_stable_version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<jaxb_api_version>2.3.1</jaxb_api_version>
-		<spring_version>5.3.7</spring_version>
+		<spring_version>5.3.16</spring_version>
 		<registry_omopv5_version>1.3.0</registry_omopv5_version>
 	</properties>
 	
@@ -82,7 +82,7 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<version>42.2.21</version>
+			<version>42.3.3</version>
 		</dependency>
 		<dependency>
 			<groupId>edu.gatech.chai</groupId>

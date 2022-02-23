@@ -110,11 +110,22 @@ public class OmopDocumentReference extends BaseOmopResource<DocumentReference, N
 			omopId = IdMapping.getOMOPfromFHIR(fhirId.getIdPartAsLong(), DocumentReferenceResourceProvider.getType());
 		}
 		
+		/* check if we already have this entry by looking up the fhir_resource_deduplicate table.
+		 * We use identifier to check.
+		 */ 
+		Long omopIdFound = findOMOPEntity(fhirResource.getIdentifier(), "Note");
+		if (omopIdFound != 0L) {
+			omopId = omopIdFound;
+		}
+
 		Note note = constructOmop(omopId, fhirResource);
 		
 		Long OmopRecordId = null;
 		if (omopId == null) {
 			OmopRecordId = getMyOmopService().create(note).getId();
+
+			// Create a deduplicate entry
+			createDuplicateEntry(fhirResource.getIdentifier(), "Note", OmopRecordId);
 		} else {
 			OmopRecordId = getMyOmopService().update(note).getId();
 		}
@@ -416,6 +427,11 @@ public class OmopDocumentReference extends BaseOmopResource<DocumentReference, N
 		}
 		
 		note.setNoteText(note_text);
+		
+		// default for non-null fields
+		note.setNoteClassConcept(new Concept(0L));
+		note.setEncodingConcept(new Concept(0L));
+		note.setLanguageConcept(new Concept(0L));
 		
 		return note;
 	}

@@ -1,6 +1,9 @@
+export TARGETDATABASE=postgresql
 export JDBC_URL="jdbc:postgresql://localhost:5434/syphilis_registry"
 export JDBC_USERNAME="postgres"
 export JDBC_PASSWORD="i3lworks"
+export RCAPI_HOST="https://gt-apps.hdap.gatech.edu/rc-api"
+export RCAPI_BASIC_AUTH="username:password"
 export SMART_INTROSPECTURL="http://localhost:8080/smart/introspect"
 export SMART_AUTHSERVERURL="http://localhost:8080/smart/authorize"
 export SMART_TOKENSERVERURL="http://localhost:8080/smart/token"

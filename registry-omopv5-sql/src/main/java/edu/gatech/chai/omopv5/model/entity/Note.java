@@ -52,7 +52,7 @@ public class Note extends BaseEntity {
 	@Column(name="note_title")
 	private String noteTitle;
 
-	@Column(name="note_text")
+	@Column(name="note_text", nullable=false)
 	private String noteText;
 
 	@JoinColumn(name="encoding_concept_id", referencedColumnName="concept_id", nullable=false)
@@ -73,7 +73,7 @@ public class Note extends BaseEntity {
 	@Column(name="note_event_id")
 	private Long noteEventId;
 
-	@JoinColumn(name="note_event_field_concept_id", referencedColumnName="concept_id", nullable=false)
+	@JoinColumn(name="note_event_field_concept_id", referencedColumnName="concept_id")
 	private Concept noteEventFieldConcept;
 
 	public Note() {
