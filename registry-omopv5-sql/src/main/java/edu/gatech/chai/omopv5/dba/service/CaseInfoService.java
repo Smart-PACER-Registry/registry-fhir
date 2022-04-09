@@ -8,11 +8,16 @@ import java.util.List;
 
 import com.google.cloud.bigquery.FieldValueList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.gatech.chai.omopv5.dba.util.SqlUtil;
 import edu.gatech.chai.omopv5.model.entity.FPerson;
 import edu.gatech.chai.omopv5.model.entity.CaseInfo;
 
 public interface CaseInfoService extends IService<CaseInfo> {
+	public static final Logger logger = LoggerFactory.getLogger(CaseInfoService.class);
+
 	public static CaseInfo _construct(ResultSet rs, CaseInfo caseInfo, String alias) {
 		if (caseInfo == null) {
 			caseInfo = new CaseInfo();
@@ -55,6 +60,7 @@ public interface CaseInfoService extends IService<CaseInfo> {
 				}
 			}
 		} catch (SQLException e) {
+			logger.error("CaseInfo construct failed: ");
 			e.printStackTrace();
 			return null;
 		}

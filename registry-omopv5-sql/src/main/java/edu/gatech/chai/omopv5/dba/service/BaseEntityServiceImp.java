@@ -61,7 +61,6 @@ import edu.gatech.chai.omopv5.model.entity.custom.Id;
 import edu.gatech.chai.omopv5.model.entity.custom.JoinColumn;
 import edu.gatech.chai.omopv5.model.entity.custom.Table;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class BaseEntityServiceImp.
  *
@@ -185,6 +184,7 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity> implements ISer
 		// Now, we translate this to attached database SQL.
 		query = SqlTranslate.translateSql(query, databaseConfig.getSqlRenderTargetDialect());
 
+		logger.debug("[updateQuery]querySql: " + query);
 		PreparedStatement stmt = getConnection().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
 		int affectedRows = stmt.executeUpdate();
 		if (affectedRows == 0) {
@@ -1082,7 +1082,7 @@ public abstract class BaseEntityServiceImp<T extends BaseEntity> implements ISer
 		}
 
 		if (updateEntity(id, clazz, entity) == null) {
-			logger.error("Failed to update table: " + getSqlTableName(parentClazz));
+			logger.error("Failed to update table: " + getSqlTableName(clazz));
 			return null;
 		}
 

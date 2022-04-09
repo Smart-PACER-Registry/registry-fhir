@@ -138,7 +138,7 @@ public class OmopServerOperations {
 					newEntry = addResponseEntry("200 OK", PatientResourceProvider.getType() + "/" + fhirId);
 				}
 
-				patient.setId("Patient/" + fhirId);
+				patient.setId(new IdType(PatientResourceProvider.getType(), fhirId));
 				newEntry.setResource(patient);
 				responseEntries.add(newEntry);
 

@@ -1,5 +1,5 @@
 export TARGETDATABASE=postgresql
-export JDBC_URL="jdbc:postgresql://localhost:5434/syphilis_registry"
+export JDBC_URL="jdbc:postgresql://localhost:5432/syphilis_registry"
 export JDBC_USERNAME="postgres"
 export JDBC_PASSWORD="i3lworks"
 export RCAPI_HOST="https://gt-apps.hdap.gatech.edu/rc-api"

@@ -193,6 +193,7 @@ public class ServerOperations {
 						Resource resource = responseEntry.getResource();
 						if (resource instanceof Patient) {
 							fPerson = new FPerson();
+							System.out.println("NEW PATIENT IS:::::" + ((Patient) resource).getIdElement().getIdPartAsLong());
 							fPerson.setId(((Patient) resource).getIdElement().getIdPartAsLong());
 						}
 

@@ -254,7 +254,14 @@ public class ScheduledTask {
 
 						if (resultBundle != null && !resultBundle.isEmpty()) {
 							List<BundleEntryComponent> entries = resultBundle.getEntry();
-							List<BundleEntryComponent> responseEntries = myMapper.createEntries(entries, caseInfo);
+							List<BundleEntryComponent> responseEntries = null;
+							try {
+								responseEntries = myMapper.createEntries(entries, caseInfo);
+							} catch (Exception e) {
+								logger.error("Error occured while creating resources in the Output FHIR Bundle entries");
+								e.printStackTrace();
+								continue;
+							}
 							int errorFlag = 0;
 							String errMessage = "";
 							for (BundleEntryComponent responseEntry : responseEntries) {
