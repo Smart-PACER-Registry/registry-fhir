@@ -148,3 +148,5 @@ local.properties
 # Visual Studio Code
 .vscode
 .factorypath
+
+env*

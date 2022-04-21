@@ -294,10 +294,10 @@ public class OmopServerOperations {
 				// if we have the DocumentReference attached or we just have a link to it. 
 				// If we don't have it attached, then we need to create one and write the link.
 				for (Reference reference : observation.getFocus()) {
-					Reference origReference = reference;
+					String origReferenceString = reference.getReference();
 					updateReference(reference);
 
-					if ("DocumentReference".equals(reference.getReferenceElement().getResourceType()) && reference.getReference().equals(origReference.getReference())) {
+					if ("DocumentReference".equals(reference.getReferenceElement().getResourceType()) && reference.getReference().equals(origReferenceString)) {
 						// The reference is not updated. This means that we don't have the document reference attached.
 						// Create one here.
 						DocumentReference linkNote = new DocumentReference();
@@ -308,13 +308,13 @@ public class OmopServerOperations {
 
 						Identifier noteIdentifier = new Identifier();
 						noteIdentifier.setSystem("urn:gtri:registry_manager");
-						noteIdentifier.setValue(origReference.getReference());
+						noteIdentifier.setValue(origReferenceString);
 						linkNote.addIdentifier(noteIdentifier);
 
 						Attachment attachment = new Attachment();
 						attachment.setContentType("text/plain");
 						attachment.setLanguage("en-US");
-						attachment.setData(origReference.getReference().getBytes());
+						attachment.setData(origReferenceString.getBytes());
 						DocumentReferenceContentComponent docComponent = new DocumentReferenceContentComponent(attachment);
 						linkNote.addContent(docComponent);
 

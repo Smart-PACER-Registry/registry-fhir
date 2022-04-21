@@ -1078,7 +1078,8 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 		observation.setObservationConcept(concept);
 		observation.setObservationSourceConcept(concept);
 		
-		observation.setObservationSourceValue(valueSourceString.substring(0, valueSourceString.length()>50?49:valueSourceString.length()));
+		// observation.setObservationSourceValue(valueSourceString.substring(0, valueSourceString.length()>50?49:valueSourceString.length()));
+		observation.setObservationSourceValue(valueSourceString.replace("'", "''"));
 
 		if (concept != null)
 			observation.setObservationSourceConcept(concept);
@@ -1420,7 +1421,7 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 		} else {
 			observation = (edu.gatech.chai.omopv5.model.entity.Observation) entityMap.get("entity");
 			if (isSurvey || ExtensionUtil.isInUserSpace(observation.getObservationConcept().getId())) {
-				observation.setObservationSourceValue(commentText);
+				observation.setObservationSourceValue(commentText.replace("'", "''"));
 			}
 
 			observation.setObservationTypeConcept(typeConcept);
