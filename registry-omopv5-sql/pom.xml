@@ -28,19 +28,19 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring_version>5.3.16</spring_version>
+		<spring_version>5.3.19</spring_version>
 	</properties>
 
 	<repositories>
 		<repository>
 			<id>ohdsi</id>
 			<name>repo.ohdsi.org</name>
-			<url>http://repo.ohdsi.org:8085/nexus/content/repositories/releases</url>
+			<url>https://repo.ohdsi.org:8085/nexus/content/repositories/releases</url>
 		</repository>
 		<repository>
 			<id>ohdsi.snapshots</id>
 			<name>repo.ohdsi.org-snapshots</name>
-			<url>http://repo.ohdsi.org:8085/nexus/content/repositories/snapshots</url>
+			<url>https://repo.ohdsi.org:8085/nexus/content/repositories/snapshots</url>
 			<releases>
 				<enabled>false</enabled>
 			</releases>

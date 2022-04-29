@@ -25,7 +25,7 @@
 		<hapi_stable_version>5.5.1</hapi_stable_version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<jaxb_api_version>2.3.1</jaxb_api_version>
-		<spring_version>5.3.18</spring_version>
+		<spring_version>5.3.19</spring_version>
 		<registry_omopv5_version>1.3.0</registry_omopv5_version>
 	</properties>
 	
