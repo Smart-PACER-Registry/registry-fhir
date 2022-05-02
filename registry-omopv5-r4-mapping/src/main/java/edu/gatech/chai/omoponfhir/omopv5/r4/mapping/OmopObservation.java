@@ -15,6 +15,7 @@
  *******************************************************************************/
 package edu.gatech.chai.omoponfhir.omopv5.r4.mapping;
 
+import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -1192,13 +1193,29 @@ public class OmopObservation extends BaseOmopResource<Observation, FObservationV
 			}
 		} else if (valueType instanceof Ratio) {
 			Ratio ratio = (Ratio) valueType;
-			Quantity numberator = ratio.getNumerator();
+			Quantity numerator = ratio.getNumerator();
 			Quantity denominator = ratio.getDenominator();
-			if (numberator == null || denominator == null) {
+			if (numerator == null || denominator == null) {
 				throw new FHIRException("For Ratio, both numerator and denominator must not be null.");
 			}
+			BigDecimal numeratorValue = ((Ratio) valueType).getNumerator().getValue();
+			BigDecimal denominatorValue = ((Ratio) valueType).getDenominator().getValue();
 
-			String valueString = ((Ratio) valueType).getNumerator().getValue() + ":" + ((Ratio) valueType).getDenominator().getValue();
+			String valueNumeratorString;
+			if ((numeratorValue.doubleValue()/numeratorValue.intValue()) == 1) {
+				valueNumeratorString = String.valueOf(numeratorValue.intValue());
+			} else {
+				valueNumeratorString = String.valueOf(numeratorValue);
+			}
+
+			String valueDenominatorString;
+			if ((denominatorValue.doubleValue()/denominatorValue.intValue()) == 1) {
+				valueDenominatorString = String.valueOf(denominatorValue.intValue());
+			} else {
+				valueDenominatorString = String.valueOf(denominatorValue);
+			}
+
+			String valueString = valueNumeratorString + ":" + valueDenominatorString;
 			observation.setValueAsString(valueString);
 		}
 
