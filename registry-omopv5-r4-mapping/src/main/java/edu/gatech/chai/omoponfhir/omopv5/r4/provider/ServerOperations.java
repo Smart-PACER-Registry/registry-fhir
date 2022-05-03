@@ -150,7 +150,7 @@ public class ServerOperations {
 		List<ParameterWrapper> paramList = new ArrayList<ParameterWrapper>();
 		ParameterWrapper parameterWrapper = new ParameterWrapper();
 		if (theCaseId != null) {
-			parameterWrapper.setParameterType("String");
+			parameterWrapper.setParameterType("Integer");
 			parameterWrapper.setParameters(Arrays.asList("id"));
 			parameterWrapper.setOperators(Arrays.asList("="));
 			parameterWrapper.setValues(Arrays.asList(theCaseId.getValue()));
