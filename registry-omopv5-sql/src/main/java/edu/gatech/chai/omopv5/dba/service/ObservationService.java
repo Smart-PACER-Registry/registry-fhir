@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 
+import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
 
 import edu.gatech.chai.omopv5.dba.util.SqlUtil;
@@ -65,7 +66,12 @@ public interface ObservationService extends IService<Observation> {
 					Concept observationTypeConcept = ConceptService._construct(rs, null, "observationTypeConcept");
 					observation.setObservationTypeConcept(observationTypeConcept);
 				} else if (columnInfo.equalsIgnoreCase(alias + "_value_as_number")) {
-					observation.setValueAsNumber(rs.getDouble(columnInfo));
+					double theValue = rs.getDouble(columnInfo);
+					if (rs.wasNull()) {
+						observation.setValueAsNumber(null);
+					} else {
+						observation.setValueAsNumber(theValue);
+					}
 				} else if (columnInfo.equalsIgnoreCase(alias + "_value_as_string")) {
 					observation.setValueAsString(rs.getString(columnInfo));
 				} else if (columnInfo.equalsIgnoreCase("valueAsConcept_concept_id")) {
@@ -144,7 +150,12 @@ public interface ObservationService extends IService<Observation> {
 				Concept observationTypeConcept = ConceptService._construct(rowResult, null, "observationTypeConcept", columns);
 				observation.setObservationTypeConcept(observationTypeConcept);
 			} else if (columnInfo.equalsIgnoreCase(alias + "_value_as_number")) {
-				observation.setValueAsNumber(rowResult.get(columnInfo).getDoubleValue());
+				FieldValue theValue = rowResult.get(columnInfo);
+				if (theValue.isNull()) {
+					observation.setValueAsNumber(null);
+				} else {
+					observation.setValueAsNumber(theValue.getDoubleValue());
+				}
 			} else if (columnInfo.equalsIgnoreCase(alias + "_value_as_string")) {
 				observation.setValueAsString(rowResult.get(columnInfo).getStringValue());
 			} else if (columnInfo.equalsIgnoreCase("valueAsConcept_concept_id")) {
